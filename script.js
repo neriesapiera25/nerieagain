@@ -329,8 +329,12 @@ function handleSkip(lootName, playerName) {
     };
     rotationHistory.unshift(historyEntry);
     
-    // Advance only this specific item to next player
-    advanceSpecificItem(lootName);
+    // Advance to next player (skipped player will get priority later)
+    const rotation = lootRotations[lootName];
+    if (rotation && rotation.length > 0) {
+        currentPlayerRotation[lootName] = (currentPlayerRotation[lootName] + 1) % rotation.length;
+        currentLootState[lootName] = 'pending';
+    }
     
     saveData();
     renderRotation();
@@ -468,12 +472,56 @@ function moveToNextItem() {
 function advanceSpecificItem(lootName) {
     const rotation = lootRotations[lootName];
     if (rotation && rotation.length > 0) {
-        // Advance only this specific item
-        currentPlayerRotation[lootName] = (currentPlayerRotation[lootName] + 1) % rotation.length;
-        currentLootState[lootName] = 'pending';
+        // Check if there are skipped items for this specific loot
+        const skippedForThisLoot = skippedItems.filter(item => item.lootName === lootName);
         
-        // Check if we need to reset skips
-        checkAndResetSkips();
+        if (skippedForThisLoot.length > 0) {
+            // Get the first skipped player for this loot
+            const nextSkipped = skippedForThisLoot.shift();
+            const playerIndex = rotation.indexOf(nextSkipped.playerName);
+            if (playerIndex !== -1) {
+                currentPlayerRotation[lootName] = playerIndex;
+                currentLootState[lootName] = 'pending';
+                
+                // Remove the used skipped item from the global array
+                const globalIndex = skippedItems.findIndex(item => 
+                    item.lootName === nextSkipped.lootName && 
+                    item.playerName === nextSkipped.playerName
+                );
+                if (globalIndex !== -1) {
+                    skippedItems.splice(globalIndex, 1);
+                }
+            }
+        } else {
+            // No skipped items, advance normally
+            currentPlayerRotation[lootName] = (currentPlayerRotation[lootName] + 1) % rotation.length;
+            currentLootState[lootName] = 'pending';
+        }
+        
+        // Check if we need to reset skips for this loot item
+        checkAndResetSkipsForLoot(lootName);
+    }
+}
+
+// Check if rotation is complete for a specific loot and reset skips
+function checkAndResetSkipsForLoot(lootName) {
+    const rotation = lootRotations[lootName];
+    if (!rotation || rotation.length === 0) return;
+    
+    // Check if all players in this rotation have looted or used all skips
+    const allComplete = rotation.every(player => {
+        const skipKey = `${player}_${lootName}`;
+        const skipCount = playerSkipCounts[skipKey] || 0;
+        return currentLootState[lootName] === 'looted' || skipCount >= 2;
+    });
+    
+    // If all players are complete, reset skips for this loot only
+    if (allComplete) {
+        rotation.forEach(player => {
+            const skipKey = `${player}_${lootName}`;
+            playerSkipCounts[skipKey] = 0;
+        });
+        showNotification(`${lootName} rotation complete! Skips reset for ${lootName}.`, 'success');
     }
 }
 
