@@ -1709,6 +1709,7 @@ function attemptLogin() {
         isAdmin = true;
         hideAdminLoginModal();
         updateAdminUI();
+        renderRotation(); // Force re-render to update buttons
         showNotification('Logged in as Admin!', 'success');
     } else {
         document.getElementById('login-error').classList.remove('hidden');
@@ -1718,6 +1719,7 @@ function attemptLogin() {
 function logout() {
     isAdmin = false;
     updateAdminUI();
+    renderRotation(); // Force re-render to update buttons
     showNotification('Logged out', 'info');
 }
 
