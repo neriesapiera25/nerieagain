@@ -346,7 +346,8 @@ function lootAction(action) {
 
 function handleLoot(lootName, playerName) {
     console.log('handleLoot called:', lootName, playerName);
-    console.log('skippedItems before:', skippedItems);
+    console.log('skippedItems before:', JSON.stringify(skippedItems));
+    console.log('skipPriorityLoot:', window.skipPriorityLoot);
     
     // Clear existing highlights
     highlightedItems.clear();
@@ -376,41 +377,56 @@ function handleLoot(lootName, playerName) {
     rotationHistory.unshift(historyEntry);
     rotationsToday++;
     
-    // IMPORTANT: Check for skipped items BEFORE advancing rotation
-    // The skipped player should get the NEXT turn, not the current turn
-    const skippedForThisLoot = skippedItems.filter(item => item.lootName === lootName);
-    console.log('skippedForThisLoot:', skippedForThisLoot);
-    
-    // Advance to next player normally (the person who just looted was already handled)
     const rotation = lootRotations[lootName];
-    if (rotation && rotation.length > 0) {
-        if (skippedForThisLoot.length > 0) {
-            // There are skipped players, give priority to the first one
-            const nextSkipped = skippedForThisLoot[0];
-            const playerIndex = rotation.indexOf(nextSkipped.playerName);
-            
-            console.log('Setting priority to skipped player:', nextSkipped.playerName, 'at index:', playerIndex);
-            
-            if (playerIndex !== -1) {
-                currentPlayerRotation[lootName] = playerIndex;
-                currentLootState[lootName] = 'pending';
+    
+    // Check if this was a skipped player getting their priority turn
+    if (window.skipPriorityLoot && window.skipPriorityLoot.lootName === lootName) {
+        // This skipped player just looted, now resume to the next person after where we left off
+        const resumePosition = window.skipPriorityLoot.resumePosition;
+        console.log('Skipped player looted, resuming to position:', resumePosition);
+        currentPlayerRotation[lootName] = resumePosition;
+        currentLootState[lootName] = 'pending';
+        window.skipPriorityLoot = null; // Clear the priority flag
+    } else {
+        // Normal loot - check for skipped items
+        const skippedForThisLoot = skippedItems.filter(item => item.lootName === lootName);
+        console.log('skippedForThisLoot:', skippedForThisLoot);
+        
+        if (rotation && rotation.length > 0) {
+            if (skippedForThisLoot.length > 0) {
+                // There are skipped players, give priority to the first one
+                const nextSkipped = skippedForThisLoot[0];
+                const skippedPlayerIndex = rotation.indexOf(nextSkipped.playerName);
                 
-                // Remove the used skipped item from the global array
-                const globalIndex = skippedItems.findIndex(item => 
-                    item.lootName === nextSkipped.lootName && 
-                    item.playerName === nextSkipped.playerName
-                );
-                if (globalIndex !== -1) {
-                    skippedItems.splice(globalIndex, 1);
+                console.log('Setting priority to skipped player:', nextSkipped.playerName, 'at index:', skippedPlayerIndex);
+                
+                if (skippedPlayerIndex !== -1) {
+                    // Calculate where to resume after skipped player loots
+                    // Resume to the next person after the current player (who just looted)
+                    const currentIndex = rotation.indexOf(playerName);
+                    const resumePosition = (currentIndex + 1) % rotation.length;
+                    
+                    currentPlayerRotation[lootName] = skippedPlayerIndex;
+                    currentLootState[lootName] = 'pending';
+                    
+                    // Remove the used skipped item from the global array
+                    const globalIndex = skippedItems.findIndex(item => 
+                        item.lootName === nextSkipped.lootName && 
+                        item.playerName === nextSkipped.playerName
+                    );
+                    if (globalIndex !== -1) {
+                        skippedItems.splice(globalIndex, 1);
+                    }
+                    
+                    // Store where to resume after skipped player loots
+                    window.skipPriorityLoot = { lootName, skippedPlayerIndex, resumePosition };
+                    console.log('Set skipPriorityLoot with resumePosition:', resumePosition);
                 }
-                
-                // Mark that this was a priority turn so we advance after they loot
-                window.skipPriorityLoot = { lootName, playerIndex };
+            } else {
+                // No skipped items, advance normally to next player
+                currentPlayerRotation[lootName] = (currentPlayerRotation[lootName] + 1) % rotation.length;
+                currentLootState[lootName] = 'pending';
             }
-        } else {
-            // No skipped items, advance normally to next player
-            currentPlayerRotation[lootName] = (currentPlayerRotation[lootName] + 1) % rotation.length;
-            currentLootState[lootName] = 'pending';
         }
     }
     
