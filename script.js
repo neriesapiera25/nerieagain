@@ -314,8 +314,8 @@ function handleSkip(lootName, playerName) {
     };
     rotationHistory.unshift(historyEntry);
     
-    // Move to next item
-    moveToNextItem();
+    // Advance only this specific item to next player
+    advanceSpecificItem(lootName);
     
     saveData();
     renderRotation();
@@ -434,17 +434,6 @@ function moveToNextItem() {
                 currentLootState[nextSkipped.lootName] = 'pending';
             }
         }
-        
-        // For all other loot items, advance normally
-        lootItems.forEach(loot => {
-            if (loot.name !== nextSkipped.lootName) {
-                const rotation = lootRotations[loot.name];
-                if (rotation && rotation.length > 0) {
-                    currentPlayerRotation[loot.name] = (currentPlayerRotation[loot.name] + 1) % rotation.length;
-                    currentLootState[loot.name] = 'pending';
-                }
-            }
-        });
     } else {
         // No skipped items, advance all items normally
         lootItems.forEach(loot => {
@@ -458,6 +447,19 @@ function moveToNextItem() {
     
     // Check if we need to reset skips
     checkAndResetSkips();
+}
+
+// New function to advance only a specific item
+function advanceSpecificItem(lootName) {
+    const rotation = lootRotations[lootName];
+    if (rotation && rotation.length > 0) {
+        // Advance only this specific item
+        currentPlayerRotation[lootName] = (currentPlayerRotation[lootName] + 1) % rotation.length;
+        currentLootState[lootName] = 'pending';
+        
+        // Check if we need to reset skips
+        checkAndResetSkips();
+    }
 }
 
 function resetRotation() {
