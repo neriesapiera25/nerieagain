@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Guild Loot Rotation System</title>
+    <title>Jackass Guild Loot Rotation</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -68,25 +68,66 @@
     <!-- Boss Timer Banner -->
     <div id="boss-timer-banner" class="bg-black border-b border-red-900">
         <div class="container mx-auto px-4 py-2 sm:py-3">
-            <div class="flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-8">
-                <div class="flex items-center space-x-2">
-                    <i class="fas fa-dragon text-white text-lg sm:text-xl"></i>
-                    <span class="font-bold text-red-500 text-sm sm:text-base">GUILD BOSS</span>
-                </div>
-                <div class="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-6 w-full sm:w-auto">
-                    <div class="text-center flex-1 sm:flex-none">
-                        <p class="text-xs text-gray-500">Morning Boss</p>
-                        <p class="text-base sm:text-lg font-bold text-white" id="morning-boss-time">1:00 PM</p>
-                        <p class="text-xs text-gray-400" id="morning-countdown"></p>
+            <div class="flex flex-col space-y-3 sm:space-y-4">
+                <!-- Guild Boss Section -->
+                <div class="flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-8">
+                    <div class="flex items-center space-x-2">
+                        <i class="fas fa-dragon text-white text-lg sm:text-xl"></i>
+                        <span class="font-bold text-red-500 text-sm sm:text-base">GUILD BOSS</span>
                     </div>
-                    <div class="text-center flex-1 sm:flex-none">
-                        <p class="text-xs text-gray-500">Evening Boss</p>
-                        <p class="text-base sm:text-lg font-bold text-white" id="evening-boss-time">9:00 PM</p>
-                        <p class="text-xs text-gray-400" id="evening-countdown"></p>
+                    <div class="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-6 w-full sm:w-auto">
+                        <div class="text-center flex-1 sm:flex-none">
+                            <p class="text-xs text-gray-500">Morning Boss</p>
+                            <p class="text-base sm:text-lg font-bold text-white" id="morning-boss-time">1:00 PM</p>
+                            <p class="text-xs text-gray-400" id="morning-countdown"></p>
+                        </div>
+                        <div class="text-center flex-1 sm:flex-none">
+                            <p class="text-xs text-gray-500">Evening Boss</p>
+                            <p class="text-base sm:text-lg font-bold text-white" id="evening-boss-time">9:00 PM</p>
+                            <p class="text-xs text-gray-400" id="evening-countdown"></p>
+                        </div>
+                    </div>
+                    <div id="next-boss-alert" class="hidden px-2 sm:px-3 py-1 bg-red-700 rounded-full animate-pulse">
+                        <span class="text-white font-bold text-xs sm:text-sm">BOSS SOON!</span>
                     </div>
                 </div>
-                <div id="next-boss-alert" class="hidden px-2 sm:px-3 py-1 bg-red-700 rounded-full animate-pulse">
-                    <span class="text-white font-bold text-xs sm:text-sm">BOSS SOON!</span>
+                
+                <!-- Event Timers Section -->
+                <div class="flex flex-col items-center space-y-2">
+                    <div class="flex items-center space-x-2">
+                        <i class="fas fa-calendar-alt text-white text-lg"></i>
+                        <span class="font-bold text-blue-500 text-sm">EVENT TIMERS</span>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-4xl">
+                        <!-- Castle Siege -->
+                        <div class="text-center bg-neutral-900 rounded-lg p-2 border border-neutral-800">
+                            <p class="text-xs text-gray-500">Castle Siege</p>
+                            <p class="text-sm font-bold text-white">Sunday</p>
+                            <p class="text-xs text-gray-400">5:30 PM</p>
+                            <p class="text-xs text-blue-400" id="castle-siege-countdown"></p>
+                        </div>
+                        <!-- Demon Ruler Raid -->
+                        <div class="text-center bg-neutral-900 rounded-lg p-2 border border-neutral-800">
+                            <p class="text-xs text-gray-500">Demon Ruler Raid</p>
+                            <p class="text-sm font-bold text-white">Mon & Thu</p>
+                            <p class="text-xs text-gray-400">5:30 PM</p>
+                            <p class="text-xs text-purple-400" id="demon-ruler-countdown"></p>
+                        </div>
+                        <!-- Battle of Gods -->
+                        <div class="text-center bg-neutral-900 rounded-lg p-2 border border-neutral-800">
+                            <p class="text-xs text-gray-500">Battle of Gods</p>
+                            <p class="text-sm font-bold text-white">Tue & Fri</p>
+                            <p class="text-xs text-gray-400">5:30 PM</p>
+                            <p class="text-xs text-orange-400" id="battle-of-gods-countdown"></p>
+                        </div>
+                        <!-- Conquest Battle -->
+                        <div class="text-center bg-neutral-900 rounded-lg p-2 border border-neutral-800">
+                            <p class="text-xs text-gray-500">Conquest Battle</p>
+                            <p class="text-sm font-bold text-white">Wed & Sat</p>
+                            <p class="text-xs text-gray-400">5:30 PM</p>
+                            <p class="text-xs text-green-400" id="conquest-battle-countdown"></p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -99,7 +140,7 @@
                 <div class="flex items-center space-x-3">
                     <i class="fas fa-dice text-white text-xl sm:text-2xl"></i>
                     <h1 class="text-xl sm:text-2xl font-bold text-red-500">
-                        Guild Loot Rotation
+                        Jackass Guild Loot Rotation
                     </h1>
                 </div>
                 <div class="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
@@ -295,6 +336,11 @@
 
         <!-- History Tab -->
         <div id="history-tab" class="tab-content hidden">
+            <header class="bg-neutral-900 border-b border-red-900">
+                <div class="max-w-7xl mx-auto px-4 py-4">
+                    <h1 class="text-2xl sm:text-3xl font-bold text-red-600 text-center">Jackass Guild Loot Rotation</h1>
+                </div>
+            </header>
             <div class="bg-neutral-900 rounded-xl p-4 sm:p-6 border border-neutral-800">
                 <h2 class="text-lg sm:text-xl font-bold mb-6 text-white">
                     <i class="fas fa-history mr-2"></i>Loot History
@@ -419,5 +465,14 @@
     </div>
 
     <script src="script.js"></script>
+    
+    <!-- Footer with Trademark -->
+    <footer class="bg-neutral-900 border-t border-neutral-800 py-4 mt-8">
+        <div class="container mx-auto px-4 text-center">
+            <p class="text-xs text-gray-500">
+                Powered by Nerie a.k.a Cap
+            </p>
+        </div>
+    </footer>
 </body>
 </html>

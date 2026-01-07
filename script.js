@@ -130,6 +130,9 @@ function initializeData() {
         });
     });
     
+    // Clear history for tomorrow's use
+    rotationHistory = [];
+    
     saveData();
 }
 
@@ -1984,14 +1987,24 @@ function formatCountdown(ms) {
     }
 }
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
+// Initialize the application
+document.addEventListener('DOMContentLoaded', () => {
     initializeData();
     initializeLootSystem();
-    initializeRotationManagement();
+    updateAdminUI();
+    
+    // Show rotation tab by default
+    showTab('rotation');
+    
+    // Start updating timers
     updateBossTimers();
-    setInterval(updateBossTimers, 1000); // Update every second
-    // Vercel deployment trigger - admin features added
+    updateEventTimers();
+    
+    // Update timers every minute
+    setInterval(() => {
+        updateBossTimers();
+        updateEventTimers();
+    }, 60000);
 });
 
 // Close modals when clicking outside
