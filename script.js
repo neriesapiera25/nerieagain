@@ -531,6 +531,32 @@ function showSwapModal(lootName, currentPlayer) {
 }
 
 function executeSwap(lootName, currentPlayer, targetPlayer) {
+    // Get the rotation for this loot item
+    const rotation = lootRotations[lootName];
+    if (!rotation) {
+        showNotification('Rotation not found!', 'error');
+        return;
+    }
+    
+    // Find current positions of both players
+    const currentIndex = rotation.indexOf(currentPlayer);
+    const targetIndex = rotation.indexOf(targetPlayer);
+    
+    if (currentIndex === -1 || targetIndex === -1) {
+        showNotification('One or both players not found in rotation!', 'error');
+        return;
+    }
+    
+    // Swap the players in the rotation
+    [rotation[currentIndex], rotation[targetIndex]] = [rotation[targetIndex], rotation[currentIndex]];
+    
+    // Update current rotation index if needed
+    if (currentPlayerRotation[lootName] === currentIndex) {
+        currentPlayerRotation[lootName] = targetIndex;
+    } else if (currentPlayerRotation[lootName] === targetIndex) {
+        currentPlayerRotation[lootName] = currentIndex;
+    }
+    
     // Remove any existing highlight
     highlightedItems.clear();
     
@@ -539,7 +565,8 @@ function executeSwap(lootName, currentPlayer, targetPlayer) {
     currentLootState[lootName] = 'swapped';
     
     // Clear skip count for current player (swap counts as loot)
-    playerSkipCounts[currentPlayer] = 0;
+    const skipKey = `${currentPlayer}_${lootName}`;
+    playerSkipCounts[skipKey] = 0;
     
     // Log to history
     const historyEntry = {
@@ -556,15 +583,12 @@ function executeSwap(lootName, currentPlayer, targetPlayer) {
     
     hideSwapModal();
     
-    // Advance only this specific item to next player
-    advanceSpecificItem(lootName);
-    
     saveData();
     renderRotation();
     renderHistory();
     updateStats();
     
-    showNotification(`${currentPlayer} swapped ${lootName} with ${targetPlayer}!`, 'success');
+    showNotification(`${currentPlayer} swapped positions with ${targetPlayer}!`, 'success');
 }
 
 // Check if all items in rotation are complete and reset skips if needed
@@ -730,6 +754,7 @@ function renderRotation() {
                     
                     // Check if current player has looted this item
                     const hasLooted = playerLootStatus[loot.name]?.has(currentMember) || false;
+                    console.log(`Checkmark check for ${loot.name}: ${currentMember}, hasLooted: ${hasLooted}, playerLootStatus:`, playerLootStatus[loot.name]);
                     
                     return `
                         <div class="bg-neutral-900 rounded-lg p-3 text-center border border-neutral-700">
