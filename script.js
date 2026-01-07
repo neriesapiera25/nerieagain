@@ -463,7 +463,7 @@ function renderRotation() {
                     const skipsLeft = Math.max(0, 2 - skipCount);
                     
                     return `
-                        <div class="bg-neutral-900 rounded-lg p-3 text-center border ${isHighlighted ? 'border-yellow-600 bg-yellow-900/20' : 'border-neutral-700'}">
+                        <div class="bg-neutral-900 rounded-lg p-3 text-center border border-neutral-700">
                             <p class="text-xs text-gray-500 mb-1">${loot.name}</p>
                             <p class="font-bold text-white text-sm sm:text-base break-words">${currentMember}</p>
                             <p class="text-xs text-gray-500 mb-2">Status: ${itemStatus}</p>
@@ -575,16 +575,16 @@ function generateRotationRows() {
                     const isHighlighted = highlightedItems.has(loot.name) && isCurrent;
                     
                     return `
-                        <td class="p-3 border-b border-neutral-800 text-center ${isHighlighted ? 'bg-yellow-900/40 border-yellow-600' : isCurrent ? 'bg-red-900/30 font-bold text-white' : 'text-gray-400'} relative">
+                        <td class="p-4 border-b border-neutral-800 text-center ${isHighlighted ? 'bg-yellow-900/40 border-yellow-600' : isCurrent ? 'bg-red-900/30 font-bold text-white' : 'text-gray-400'} relative min-h-[60px]">
                             ${isCurrent ? '<i class="fas fa-arrow-right mr-2 text-red-500"></i>' : ''}
                             ${isHighlighted ? '<i class="fas fa-star mr-1 text-yellow-500"></i>' : ''}
                             <span class="${isCurrent ? 'font-bold' : ''}">${member}</span>
                             ${isAdmin && member ? `
-                                <div class="absolute top-1 right-1 flex space-x-1 opacity-0 hover:opacity-100 transition-opacity">
-                                    <button onclick="moveMemberInTable('${loot.name}', ${i}, 'up')" class="p-1 text-blue-500 hover:bg-blue-900/50 rounded text-xs" ${i === 0 ? 'disabled style="opacity:0.3"' : ''} title="Move up">
+                                <div class="absolute top-1 right-1 flex space-x-1 opacity-60 hover:opacity-100 transition-opacity bg-neutral-800/90 rounded p-1 shadow-lg">
+                                    <button onclick="moveMemberInTable('${loot.name}', ${i}, 'up')" class="p-1 text-blue-500 hover:bg-blue-900/50 rounded text-xs" ${i === 0 ? 'disabled style="opacity:0.3 cursor:not-allowed"' : ''} title="Move up">
                                         <i class="fas fa-arrow-up"></i>
                                     </button>
-                                    <button onclick="moveMemberInTable('${loot.name}', ${i}, 'down')" class="p-1 text-blue-500 hover:bg-blue-900/50 rounded text-xs" ${i === rotation.length - 1 ? 'disabled style="opacity:0.3"' : ''} title="Move down">
+                                    <button onclick="moveMemberInTable('${loot.name}', ${i}, 'down')" class="p-1 text-blue-500 hover:bg-blue-900/50 rounded text-xs" ${i === rotation.length - 1 ? 'disabled style="opacity:0.3 cursor:not-allowed"' : ''} title="Move down">
                                         <i class="fas fa-arrow-down"></i>
                                     </button>
                                 </div>
