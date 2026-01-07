@@ -33,10 +33,11 @@ let guildMembers = [];
 let lootItems = [];
 let rotationHistory = [];
 let lootRotations = {}; // Stores rotation order per loot item
+let lootPlayers = {}; // Stores player list per loot item - SEPARATE for each item
 let rotationsToday = 0;
 
 // Loot system state
-let playerSkipCounts = {}; // Track skips per player per rotation
+let playerSkipCounts = {}; // Track skips per player per loot item
 let skippedItems = []; // Global skipped items queue
 let highlightedItems = new Set(); // Track highlighted swapped items
 let currentLootState = {}; // Track item states: pending, looted, skipped, swapped
@@ -98,7 +99,7 @@ function initializeData() {
 
 // Initialize loot system
 function initializeLootSystem() {
-    // Initialize current player for each loot item
+    // Initialize current player and state for each loot item
     lootItems.forEach(loot => {
         if (!currentPlayerRotation[loot.name]) {
             currentPlayerRotation[loot.name] = 0;
@@ -106,13 +107,24 @@ function initializeLootSystem() {
         if (!currentLootState[loot.name]) {
             currentLootState[loot.name] = 'pending';
         }
-    });
-    
-    // Initialize skip counts for all members
-    guildMembers.forEach(member => {
-        if (!playerSkipCounts[member.name]) {
-            playerSkipCounts[member.name] = 0;
+        
+        // Create separate player list for each loot item
+        if (!lootPlayers[loot.name]) {
+            lootPlayers[loot.name] = [...guildMembers].map(member => member.name);
         }
+        
+        // Initialize rotation for this loot item if not exists
+        if (!lootRotations[loot.name]) {
+            lootRotations[loot.name] = [...lootPlayers[loot.name]];
+        }
+        
+        // Initialize skip counts for players of this loot item
+        lootPlayers[loot.name].forEach(playerName => {
+            const key = `${playerName}_${loot.name}`;
+            if (!playerSkipCounts[key]) {
+                playerSkipCounts[key] = 0;
+            }
+        });
     });
 }
 
@@ -177,7 +189,8 @@ function showLootActionModal(lootName) {
     
     const currentMember = lootRotations[lootName]?.[currentPlayerRotation[lootName]] || 'N/A';
     const loot = lootItems.find(l => l.name === lootName);
-    const skipCount = playerSkipCounts[currentMember] || 0;
+    const skipKey = `${currentMember}_${lootName}`;
+    const skipCount = playerSkipCounts[skipKey] || 0;
     const skipsLeft = Math.max(0, 2 - skipCount);
     
     document.getElementById('current-loot-name').textContent = lootName;
@@ -252,8 +265,9 @@ function handleLoot(lootName, playerName) {
     // Mark item as looted
     currentLootState[lootName] = 'looted';
     
-    // Clear any skip state for this player
-    playerSkipCounts[playerName] = 0;
+    // Clear any skip state for this player and loot item
+    const skipKey = `${playerName}_${lootName}`;
+    playerSkipCounts[skipKey] = 0;
     
     // Log to history
     const historyEntry = {
@@ -285,7 +299,8 @@ function handleLoot(lootName, playerName) {
 }
 
 function handleSkip(lootName, playerName) {
-    const skipCount = playerSkipCounts[playerName] || 0;
+    const skipKey = `${playerName}_${lootName}`;
+    const skipCount = playerSkipCounts[skipKey] || 0;
     
     if (skipCount >= 2) {
         showNotification('No skips left! You must loot or swap.', 'error');
@@ -299,8 +314,8 @@ function handleSkip(lootName, playerName) {
         timestamp: Date.now()
     });
     
-    // Increment skip count
-    playerSkipCounts[playerName] = skipCount + 1;
+    // Increment skip count for this specific loot item
+    playerSkipCounts[skipKey] = skipCount + 1;
     currentLootState[lootName] = 'skipped';
     
     // Log to history
@@ -471,7 +486,7 @@ function resetRotation() {
     highlightedItems.clear();
     rotationsToday = 0;
     
-    // Re-initialize
+    // Re-initialize with separate player lists for each loot item
     initializeLootSystem();
     
     saveData();
@@ -505,7 +520,8 @@ function renderRotation() {
                     const currentMember = lootRotations[loot.name]?.[currentPlayerRotation[loot.name]] || 'N/A';
                     const isHighlighted = highlightedItems.has(loot.name);
                     const itemStatus = currentLootState[loot.name];
-                    const skipCount = playerSkipCounts[currentMember] || 0;
+                    const skipKey = `${currentMember}_${loot.name}`;
+                    const skipCount = playerSkipCounts[skipKey] || 0;
                     const skipsLeft = Math.max(0, 2 - skipCount);
                     
                     return `
