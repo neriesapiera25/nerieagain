@@ -646,26 +646,12 @@ function renderRotation() {
                             <p class="text-xs text-gray-500 mb-1">${loot.name}</p>
                             <p class="font-bold text-white text-sm sm:text-base break-words">${currentMember}</p>
                             <p class="text-xs text-gray-500 mb-2">Status: ${itemStatus}</p>
-                            ${itemStatus === 'pending' && isAdmin ? `
+                            ${itemStatus === 'pending' ? `
                                 <div class="space-y-2">
-                                    <button onclick="showLootActionModal('${loot.name}')" class="px-3 py-2 bg-red-700 text-white text-xs rounded hover:bg-red-800 transition w-full min-h-[44px]">
-                                        <i class="fas fa-treasure-chest mr-1"></i>Loot
+                                    <button onclick="showLootActionModal('${loot.name}')" class="px-3 py-2 ${isAdmin ? 'bg-red-700 hover:bg-red-800' : 'bg-blue-700 hover:bg-blue-800'} text-white text-xs rounded transition w-full min-h-[44px]">
+                                        <i class="fas fa-${isAdmin ? 'treasure-chest' : 'eye'} mr-1"></i>${isAdmin ? 'Loot' : 'View Details'}
                                     </button>
                                     <p class="text-xs text-gray-400">Skips: ${skipsLeft}/2</p>
-                                </div>
-                            ` : ''}
-                            ${!isAdmin && itemStatus === 'pending' ? `
-                                <div class="space-y-2">
-                                    ${skipsLeft > 0 ? `
-                                        <button onclick="showLootActionModal('${loot.name}')" class="px-3 py-2 bg-red-700 text-white text-xs rounded hover:bg-red-800 transition w-full min-h-[44px]">
-                                            <i class="fas fa-treasure-chest mr-1"></i>Loot
-                                        </button>
-                                    ` : `
-                                        <button disabled class="px-3 py-2 bg-gray-600 text-gray-400 text-xs rounded w-full min-h-[44px] cursor-not-allowed" title="No skips left - wait for rotation reset">
-                                            <i class="fas fa-lock mr-1"></i>No Skips Left
-                                        </button>
-                                    `}
-                                    <p class="text-xs ${skipsLeft > 0 ? 'text-gray-400' : 'text-red-400'}">Skips: ${skipsLeft}/2</p>
                                 </div>
                             ` : ''}
                             ${itemStatus === 'skipped' ? '<p class="text-xs text-yellow-500 mt-1"><i class="fas fa-forward mr-1"></i>Skipped</p>' : ''}
