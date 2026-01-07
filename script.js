@@ -1,3 +1,33 @@
+// Initialize the application
+document.addEventListener('DOMContentLoaded', function() {
+    initializeData();
+    
+    // Mobile optimizations
+    if ('ontouchstart' in window) {
+        document.body.classList.add('touch-device');
+    }
+    
+    // Prevent double-tap zoom on mobile
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', function(event) {
+        const now = Date.now();
+        if (now - lastTouchEnd <= 300) {
+            event.preventDefault();
+        }
+        lastTouchEnd = now;
+    }, false);
+    
+    // Handle viewport height changes on mobile (keyboard, etc.)
+    function handleViewportChange() {
+        const vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+    }
+    
+    handleViewportChange();
+    window.addEventListener('resize', handleViewportChange);
+    window.addEventListener('orientationchange', handleViewportChange);
+});
+
 // Data storage
 let guildMembers = [];
 let lootItems = [];
@@ -129,17 +159,17 @@ function renderRotation() {
 
     container.innerHTML = `
         <!-- Current Turn Summary - TOP -->
-        <div class="col-span-full mb-6 bg-neutral-800 rounded-lg p-4 border border-red-900/50">
-            <h3 class="text-lg font-bold text-white mb-3"><i class="fas fa-star mr-2 text-red-500"></i>Current Turn</h3>
-            <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div class="col-span-full mb-6 bg-neutral-800 rounded-lg p-3 sm:p-4 border border-red-900/50">
+            <h3 class="text-base sm:text-lg font-bold text-white mb-3"><i class="fas fa-star mr-2 text-red-500"></i>Current Turn</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
                 ${lootItems.map(loot => {
                     const currentMember = lootRotations[loot.name]?.[currentPositions[loot.name]] || 'N/A';
                     return `
                         <div class="bg-neutral-900 rounded-lg p-3 text-center border border-neutral-700">
                             <p class="text-xs text-gray-500 mb-1">${loot.name}</p>
-                            <p class="font-bold text-white">${currentMember}</p>
+                            <p class="font-bold text-white text-sm sm:text-base break-words">${currentMember}</p>
                             ${isAdmin ? `
-                                <button onclick="advanceLoot('${loot.name}')" class="mt-2 px-3 py-1 bg-red-700 text-white text-xs rounded hover:bg-red-800 transition w-full">
+                                <button onclick="advanceLoot('${loot.name}')" class="mt-2 px-3 py-2 bg-red-700 text-white text-xs rounded hover:bg-red-800 transition w-full min-h-[44px]">
                                     <i class="fas fa-check mr-1"></i>Looted
                                 </button>
                             ` : ''}
@@ -288,18 +318,18 @@ function renderMembers() {
     }
 
     container.innerHTML = guildMembers.map(member => `
-        <div class="bg-neutral-800 rounded-lg p-4 border border-neutral-700 hover:border-red-900 transition">
+        <div class="bg-neutral-800 rounded-lg p-3 sm:p-4 border border-neutral-700 hover:border-red-900 transition">
             <div class="flex items-center justify-between mb-2">
-                <div class="flex items-center space-x-3">
-                    <div class="w-12 h-12 bg-neutral-700 rounded-full flex items-center justify-center">
-                        <i class="fas fa-user text-white"></i>
+                <div class="flex items-center space-x-3 flex-1 min-w-0">
+                    <div class="w-10 h-10 sm:w-12 sm:h-12 bg-neutral-700 rounded-full flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-user text-white text-sm sm:text-base"></i>
                     </div>
-                    <div>
-                        <h3 class="font-bold text-white">${member.name}</h3>
-                        <p class="text-sm text-gray-500 capitalize">${member.class}</p>
+                    <div class="flex-1 min-w-0">
+                        <h3 class="font-bold text-white text-sm sm:text-base truncate">${member.name}</h3>
+                        <p class="text-xs sm:text-sm text-gray-500 capitalize">${member.class}</p>
                     </div>
                 </div>
-                <button onclick="removeMember(${member.id})" class="text-red-500 hover:text-red-400 transition">
+                <button onclick="removeMember(${member.id})" class="text-red-500 hover:text-red-400 transition p-2 min-h-[44px]">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
@@ -370,16 +400,16 @@ function renderLoot() {
     }
 
     container.innerHTML = lootItems.map(loot => `
-        <div class="bg-neutral-800 rounded-lg p-4 border border-neutral-700 hover:border-red-900 transition">
+        <div class="bg-neutral-800 rounded-lg p-3 sm:p-4 border border-neutral-700 hover:border-red-900 transition">
             <div class="flex items-center justify-between mb-2">
-                <div class="flex items-center space-x-2">
-                    <i class="fas fa-treasure-chest text-white"></i>
-                    <div>
-                        <h3 class="font-bold text-white text-sm">${loot.name}</h3>
+                <div class="flex items-center space-x-2 flex-1 min-w-0">
+                    <i class="fas fa-treasure-chest text-white flex-shrink-0"></i>
+                    <div class="flex-1 min-w-0">
+                        <h3 class="font-bold text-white text-sm sm:text-base truncate">${loot.name}</h3>
                         <p class="text-xs text-gray-500">${loot.type}</p>
                     </div>
                 </div>
-                <button onclick="removeLoot(${loot.id})" class="text-red-500 hover:text-red-400 transition">
+                <button onclick="removeLoot(${loot.id})" class="text-red-500 hover:text-red-400 transition p-2 min-h-[44px]">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>

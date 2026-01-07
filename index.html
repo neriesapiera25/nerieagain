@@ -21,31 +21,72 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
+        
+        /* Mobile optimizations */
+        @media (max-width: 640px) {
+            .container {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            
+            /* Better touch targets */
+            button {
+                min-height: 44px;
+            }
+            
+            /* Prevent horizontal scroll */
+            body {
+                overflow-x: hidden;
+            }
+            
+            /* Better mobile modals */
+            .fixed {
+                padding: 1rem;
+            }
+            
+            /* Better mobile table scrolling */
+            .overflow-x-auto {
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            /* Better mobile form inputs */
+            input, select {
+                font-size: 16px; /* Prevents zoom on iOS */
+            }
+        }
+        
+        /* Touch-friendly hover states */
+        @media (hover: none) {
+            .loot-item:hover {
+                transform: none;
+                box-shadow: none;
+            }
+        }
     </style>
 </head>
 <body class="bg-neutral-950 text-gray-100 min-h-screen">
     <!-- Boss Timer Banner -->
     <div id="boss-timer-banner" class="bg-black border-b border-red-900">
-        <div class="container mx-auto px-4 py-3">
-            <div class="flex items-center justify-center space-x-8">
+        <div class="container mx-auto px-4 py-2 sm:py-3">
+            <div class="flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-8">
                 <div class="flex items-center space-x-2">
-                    <i class="fas fa-dragon text-white text-xl"></i>
-                    <span class="font-bold text-red-500">GUILD BOSS</span>
+                    <i class="fas fa-dragon text-white text-lg sm:text-xl"></i>
+                    <span class="font-bold text-red-500 text-sm sm:text-base">GUILD BOSS</span>
                 </div>
-                <div class="flex items-center space-x-6">
-                    <div class="text-center">
-                        <p class="text-xs text-gray-500">Morning Boss (PH Time)</p>
-                        <p class="text-lg font-bold text-white" id="morning-boss-time">1:00 PM</p>
+                <div class="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-6 w-full sm:w-auto">
+                    <div class="text-center flex-1 sm:flex-none">
+                        <p class="text-xs text-gray-500">Morning Boss</p>
+                        <p class="text-base sm:text-lg font-bold text-white" id="morning-boss-time">1:00 PM</p>
                         <p class="text-xs text-gray-400" id="morning-countdown"></p>
                     </div>
-                    <div class="text-center">
-                        <p class="text-xs text-gray-500">Evening Boss (PH Time)</p>
-                        <p class="text-lg font-bold text-white" id="evening-boss-time">9:00 PM</p>
+                    <div class="text-center flex-1 sm:flex-none">
+                        <p class="text-xs text-gray-500">Evening Boss</p>
+                        <p class="text-base sm:text-lg font-bold text-white" id="evening-boss-time">9:00 PM</p>
                         <p class="text-xs text-gray-400" id="evening-countdown"></p>
                     </div>
                 </div>
-                <div id="next-boss-alert" class="hidden px-3 py-1 bg-red-700 rounded-full animate-pulse">
-                    <span class="text-white font-bold text-sm">BOSS SOON!</span>
+                <div id="next-boss-alert" class="hidden px-2 sm:px-3 py-1 bg-red-700 rounded-full animate-pulse">
+                    <span class="text-white font-bold text-xs sm:text-sm">BOSS SOON!</span>
                 </div>
             </div>
         </div>
@@ -53,29 +94,29 @@
 
     <!-- Header -->
     <header class="bg-neutral-950 border-b border-red-900/50 sticky top-0 z-50">
-        <div class="container mx-auto px-4 py-4">
-            <div class="flex items-center justify-between">
+        <div class="container mx-auto px-4 py-3 sm:py-4">
+            <div class="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
                 <div class="flex items-center space-x-3">
-                    <i class="fas fa-dice text-white text-2xl"></i>
-                    <h1 class="text-2xl font-bold text-red-500">
+                    <i class="fas fa-dice text-white text-xl sm:text-2xl"></i>
+                    <h1 class="text-xl sm:text-2xl font-bold text-red-500">
                         Guild Loot Rotation
                     </h1>
                 </div>
-                <div class="flex items-center space-x-4">
-                    <button onclick="showTab('rotation')" class="tab-btn px-4 py-2 rounded-lg bg-red-700 text-white hover:bg-red-800 transition">
-                        <i class="fas fa-sync-alt mr-2"></i>Rotation
+                <div class="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
+                    <button onclick="showTab('rotation')" class="tab-btn px-3 py-2 sm:px-4 rounded-lg bg-red-700 text-white hover:bg-red-800 transition text-sm sm:text-base">
+                        <i class="fas fa-sync-alt mr-1 sm:mr-2"></i>Rotation
                     </button>
-                    <button onclick="showTab('members')" class="tab-btn px-4 py-2 rounded-lg bg-neutral-800 text-white hover:bg-neutral-700 transition admin-only hidden">
-                        <i class="fas fa-users mr-2"></i>Members
+                    <button onclick="showTab('members')" class="tab-btn px-3 py-2 sm:px-4 rounded-lg bg-neutral-800 text-white hover:bg-neutral-700 transition admin-only hidden text-sm sm:text-base">
+                        <i class="fas fa-users mr-1 sm:mr-2"></i>Members
                     </button>
-                    <button onclick="showTab('loot')" class="tab-btn px-4 py-2 rounded-lg bg-neutral-800 text-white hover:bg-neutral-700 transition admin-only hidden">
-                        <i class="fas fa-treasure-chest mr-2"></i>Loot
+                    <button onclick="showTab('loot')" class="tab-btn px-3 py-2 sm:px-4 rounded-lg bg-neutral-800 text-white hover:bg-neutral-700 transition admin-only hidden text-sm sm:text-base">
+                        <i class="fas fa-treasure-chest mr-1 sm:mr-2"></i>Loot
                     </button>
-                    <button onclick="showTab('history')" class="tab-btn px-4 py-2 rounded-lg bg-neutral-800 text-white hover:bg-neutral-700 transition">
-                        <i class="fas fa-history mr-2"></i>History
+                    <button onclick="showTab('history')" class="tab-btn px-3 py-2 sm:px-4 rounded-lg bg-neutral-800 text-white hover:bg-neutral-700 transition text-sm sm:text-base">
+                        <i class="fas fa-history mr-1 sm:mr-2"></i>History
                     </button>
-                    <button onclick="toggleAdminLogin()" id="admin-btn" class="px-4 py-2 rounded-lg bg-red-800 text-white hover:bg-red-900 transition">
-                        <i class="fas fa-lock mr-2"></i><span id="admin-btn-text">Admin</span>
+                    <button onclick="toggleAdminLogin()" id="admin-btn" class="px-3 py-2 sm:px-4 rounded-lg bg-red-800 text-white hover:bg-red-900 transition text-sm sm:text-base">
+                        <i class="fas fa-lock mr-1 sm:mr-2"></i><span id="admin-btn-text">Admin</span>
                     </button>
                 </div>
             </div>
@@ -83,25 +124,25 @@
     </header>
 
     <!-- Main Content -->
-    <main class="container mx-auto px-4 py-8">
+    <main class="container mx-auto px-4 py-6 sm:py-8">
         <!-- Rotation Tab -->
         <div id="rotation-tab" class="tab-content">
-            <div class="bg-neutral-900 rounded-xl p-6 mb-6 border border-neutral-800">
-                <h2 class="text-xl font-bold mb-4 text-white">
+            <div class="bg-neutral-900 rounded-xl p-4 sm:p-6 mb-6 border border-neutral-800">
+                <h2 class="text-lg sm:text-xl font-bold mb-4 text-white">
                     <i class="fas fa-dice mr-2"></i>Loot Rotation
                 </h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="rotation-display">
+                <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4" id="rotation-display">
                     <!-- Rotation items will be displayed here -->
                 </div>
                 <div class="mt-6 flex justify-center space-x-4 admin-only hidden">
-                    <button onclick="resetRotation()" class="px-6 py-3 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition border border-neutral-700">
+                    <button onclick="resetRotation()" class="px-4 sm:px-6 py-2 sm:py-3 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition border border-neutral-700 text-sm sm:text-base">
                         <i class="fas fa-redo mr-2"></i>Reset All
                     </button>
                 </div>
             </div>
 
             <!-- Quick Stats -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                 <div class="bg-neutral-900 rounded-lg p-4 border border-neutral-800">
                     <div class="flex items-center justify-between">
                         <div>
@@ -133,8 +174,8 @@
         </div>
 
         <!-- Admin Login Modal -->
-        <div id="admin-login-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50">
-            <div class="bg-neutral-900 rounded-xl p-6 w-96 max-w-full mx-4 border border-neutral-800">
+        <div id="admin-login-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50 p-4">
+            <div class="bg-neutral-900 rounded-xl p-4 sm:p-6 w-full max-w-md border border-neutral-800">
                 <h3 class="text-lg font-bold mb-4 text-white"><i class="fas fa-lock mr-2"></i>Admin Login</h3>
                 <input type="password" id="admin-password" placeholder="Enter admin password" class="w-full px-4 py-2 bg-neutral-800 rounded-lg mb-4 text-white placeholder-gray-500 border border-neutral-700">
                 <p id="login-error" class="text-red-500 text-sm mb-4 hidden">Incorrect password!</p>
@@ -147,16 +188,16 @@
 
         <!-- Members Tab -->
         <div id="members-tab" class="tab-content hidden">
-            <div class="bg-neutral-900 rounded-xl p-6 border border-neutral-800">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-xl font-bold text-white">
+            <div class="bg-neutral-900 rounded-xl p-4 sm:p-6 border border-neutral-800">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0">
+                    <h2 class="text-lg sm:text-xl font-bold text-white">
                         <i class="fas fa-users mr-2"></i>Guild Members
                     </h2>
-                    <button onclick="showAddMemberModal()" class="px-4 py-2 bg-red-700 text-white rounded-lg hover:bg-red-800 transition">
+                    <button onclick="showAddMemberModal()" class="px-4 py-2 bg-red-700 text-white rounded-lg hover:bg-red-800 transition w-full sm:w-auto">
                         <i class="fas fa-plus mr-2"></i>Add Member
                     </button>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="members-list">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="members-list">
                     <!-- Members will be displayed here -->
                 </div>
             </div>
@@ -164,16 +205,16 @@
 
         <!-- Loot Tab -->
         <div id="loot-tab" class="tab-content hidden">
-            <div class="bg-neutral-900 rounded-xl p-6 border border-neutral-800">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-xl font-bold text-white">
+            <div class="bg-neutral-900 rounded-xl p-4 sm:p-6 border border-neutral-800">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0">
+                    <h2 class="text-lg sm:text-xl font-bold text-white">
                         <i class="fas fa-treasure-chest mr-2"></i>Loot Items
                     </h2>
-                    <button onclick="showAddLootModal()" class="px-4 py-2 bg-red-700 text-white rounded-lg hover:bg-red-800 transition">
+                    <button onclick="showAddLootModal()" class="px-4 py-2 bg-red-700 text-white rounded-lg hover:bg-red-800 transition w-full sm:w-auto">
                         <i class="fas fa-plus mr-2"></i>Add Loot
                     </button>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="loot-list">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="loot-list">
                     <!-- Loot items will be displayed here -->
                 </div>
             </div>
@@ -181,8 +222,8 @@
 
         <!-- History Tab -->
         <div id="history-tab" class="tab-content hidden">
-            <div class="bg-neutral-900 rounded-xl p-6 border border-neutral-800">
-                <h2 class="text-xl font-bold mb-6 text-white">
+            <div class="bg-neutral-900 rounded-xl p-4 sm:p-6 border border-neutral-800">
+                <h2 class="text-lg sm:text-xl font-bold mb-6 text-white">
                     <i class="fas fa-history mr-2"></i>Loot History
                 </h2>
                 <div class="space-y-4" id="history-list">
@@ -193,8 +234,8 @@
     </main>
 
     <!-- Add Member Modal -->
-    <div id="add-member-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50">
-        <div class="bg-neutral-900 rounded-xl p-6 w-96 max-w-full mx-4 border border-neutral-800">
+    <div id="add-member-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-neutral-900 rounded-xl p-4 sm:p-6 w-full max-w-md border border-neutral-800">
             <h3 class="text-lg font-bold mb-4 text-white">Add Guild Member</h3>
             <input type="text" id="member-name" placeholder="Member name" class="w-full px-4 py-2 bg-neutral-800 rounded-lg mb-4 text-white placeholder-gray-500 border border-neutral-700">
             <select id="member-class" class="w-full px-4 py-2 bg-neutral-800 rounded-lg mb-4 text-white border border-neutral-700">
@@ -221,8 +262,8 @@
     </div>
 
     <!-- Add Loot Modal -->
-    <div id="add-loot-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50">
-        <div class="bg-neutral-900 rounded-xl p-6 w-96 max-w-full mx-4 border border-neutral-800">
+    <div id="add-loot-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-neutral-900 rounded-xl p-4 sm:p-6 w-full max-w-md border border-neutral-800">
             <h3 class="text-lg font-bold mb-4 text-white">Add Loot Item</h3>
             <input type="text" id="loot-name" placeholder="Loot name" class="w-full px-4 py-2 bg-neutral-800 rounded-lg mb-4 text-white placeholder-gray-500 border border-neutral-700">
             <select id="loot-rarity" class="w-full px-4 py-2 bg-neutral-800 rounded-lg mb-4 text-white border border-neutral-700">
