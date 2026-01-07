@@ -467,11 +467,17 @@ function renderRotation() {
                             <p class="text-xs text-gray-500 mb-1">${loot.name}</p>
                             <p class="font-bold text-white text-sm sm:text-base break-words">${currentMember}</p>
                             <p class="text-xs text-gray-500 mb-2">Status: ${itemStatus}</p>
-                            ${itemStatus === 'pending' ? `
+                            ${itemStatus === 'pending' && isAdmin ? `
                                 <div class="space-y-2">
-                                    <button onclick="showLootActionModal('${loot.name}')" class="px-3 py-2 bg-red-700 text-white text-xs rounded hover:bg-red-800 transition w-full min-h-[44px]" ${!isAdmin ? 'disabled style="opacity:0.5 cursor:not-allowed;" title="Admin access required"' : ''}>
+                                    <button onclick="showLootActionModal('${loot.name}')" class="px-3 py-2 bg-red-700 text-white text-xs rounded hover:bg-red-800 transition w-full min-h-[44px]">
                                         <i class="fas fa-treasure-chest mr-1"></i>Loot
                                     </button>
+                                    <p class="text-xs text-gray-400">Skips: ${skipsLeft}/2</p>
+                                </div>
+                            ` : ''}
+                            ${!isAdmin && itemStatus === 'pending' ? `
+                                <div class="space-y-2">
+                                    <p class="text-xs text-gray-500 italic">Admin required for loot actions</p>
                                     <p class="text-xs text-gray-400">Skips: ${skipsLeft}/2</p>
                                 </div>
                             ` : ''}
@@ -565,11 +571,24 @@ function generateRotationRows() {
                 ${lootItems.map(loot => {
                     const rotation = lootRotations[loot.name] || [];
                     const member = rotation[i] || '';
-                    const isCurrent = currentPositions[loot.name] === i;
+                    const isCurrent = currentPlayerRotation[loot.name] === i;
+                    const isHighlighted = highlightedItems.has(loot.name) && isCurrent;
+                    
                     return `
-                        <td class="p-3 border-b border-neutral-800 text-center ${isCurrent ? 'bg-red-900/30 font-bold text-white' : 'text-gray-400'}">
+                        <td class="p-3 border-b border-neutral-800 text-center ${isHighlighted ? 'bg-yellow-900/40 border-yellow-600' : isCurrent ? 'bg-red-900/30 font-bold text-white' : 'text-gray-400'} relative">
                             ${isCurrent ? '<i class="fas fa-arrow-right mr-2 text-red-500"></i>' : ''}
-                            ${member}
+                            ${isHighlighted ? '<i class="fas fa-star mr-1 text-yellow-500"></i>' : ''}
+                            <span class="${isCurrent ? 'font-bold' : ''}">${member}</span>
+                            ${isAdmin && member ? `
+                                <div class="absolute top-1 right-1 flex space-x-1 opacity-0 hover:opacity-100 transition-opacity">
+                                    <button onclick="moveMemberInTable('${loot.name}', ${i}, 'up')" class="p-1 text-blue-500 hover:bg-blue-900/50 rounded text-xs" ${i === 0 ? 'disabled style="opacity:0.3"' : ''} title="Move up">
+                                        <i class="fas fa-arrow-up"></i>
+                                    </button>
+                                    <button onclick="moveMemberInTable('${loot.name}', ${i}, 'down')" class="p-1 text-blue-500 hover:bg-blue-900/50 rounded text-xs" ${i === rotation.length - 1 ? 'disabled style="opacity:0.3"' : ''} title="Move down">
+                                        <i class="fas fa-arrow-down"></i>
+                                    </button>
+                                </div>
+                            ` : ''}
                         </td>
                     `;
                 }).join('')}
@@ -577,6 +596,41 @@ function generateRotationRows() {
         `;
     }
     return rows;
+}
+
+// Admin table arrangement functions
+function moveMemberInTable(lootName, index, direction) {
+    if (!isAdmin) {
+        showNotification('Admin access required!', 'error');
+        return;
+    }
+    
+    const rotation = lootRotations[lootName];
+    if (!rotation || rotation.length <= index) return;
+    
+    if (direction === 'up' && index > 0) {
+        // Swap with previous member
+        [rotation[index], rotation[index - 1]] = [rotation[index - 1], rotation[index]];
+        // Adjust current rotation index if needed
+        if (currentPlayerRotation[lootName] === index) {
+            currentPlayerRotation[lootName] = index - 1;
+        } else if (currentPlayerRotation[lootName] === index - 1) {
+            currentPlayerRotation[lootName] = index;
+        }
+    } else if (direction === 'down' && index < rotation.length - 1) {
+        // Swap with next member
+        [rotation[index], rotation[index + 1]] = [rotation[index + 1], rotation[index]];
+        // Adjust current rotation index if needed
+        if (currentPlayerRotation[lootName] === index) {
+            currentPlayerRotation[lootName] = index + 1;
+        } else if (currentPlayerRotation[lootName] === index + 1) {
+            currentPlayerRotation[lootName] = index;
+        }
+    }
+    
+    saveData();
+    renderRotation();
+    showNotification('Member moved in rotation!', 'success');
 }
 
 // Member management
