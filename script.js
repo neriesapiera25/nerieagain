@@ -1397,6 +1397,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeRotationManagement();
     updateBossTimers();
     setInterval(updateBossTimers, 1000); // Update every second
+    // Vercel deployment trigger - admin features added
 });
 
 // Close modals when clicking outside
