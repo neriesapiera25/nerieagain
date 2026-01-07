@@ -170,6 +170,11 @@ function nextRotation() {
 
 // Loot Action Modal Functions
 function showLootActionModal(lootName) {
+    if (!isAdmin) {
+        showNotification('Admin access required to perform loot actions!', 'error');
+        return;
+    }
+    
     const currentMember = lootRotations[lootName]?.[currentPlayerRotation[lootName]] || 'N/A';
     const loot = lootItems.find(l => l.name === lootName);
     const skipCount = playerSkipCounts[currentMember] || 0;
@@ -241,6 +246,9 @@ function lootAction(action) {
 }
 
 function handleLoot(lootName, playerName) {
+    // Clear existing highlights
+    highlightedItems.clear();
+    
     // Mark item as looted
     currentLootState[lootName] = 'looted';
     
@@ -261,6 +269,12 @@ function handleLoot(lootName, playerName) {
     
     // Move to next item or handle skipped items
     moveToNextItem();
+    
+    // Highlight the next item for the same loot
+    const rotation = lootRotations[lootName];
+    if (rotation && rotation.length > 0) {
+        highlightedItems.add(lootName);
+    }
     
     saveData();
     renderRotation();
@@ -455,13 +469,16 @@ function renderRotation() {
                             <p class="text-xs text-gray-500 mb-2">Status: ${itemStatus}</p>
                             ${itemStatus === 'pending' ? `
                                 <div class="space-y-2">
-                                    <button onclick="showLootActionModal('${loot.name}')" class="px-3 py-2 bg-red-700 text-white text-xs rounded hover:bg-red-800 transition w-full min-h-[44px]">
+                                    <button onclick="showLootActionModal('${loot.name}')" class="px-3 py-2 bg-red-700 text-white text-xs rounded hover:bg-red-800 transition w-full min-h-[44px]" ${!isAdmin ? 'disabled style="opacity:0.5 cursor:not-allowed;" title="Admin access required"' : ''}>
                                         <i class="fas fa-treasure-chest mr-1"></i>Loot
                                     </button>
                                     <p class="text-xs text-gray-400">Skips: ${skipsLeft}/2</p>
                                 </div>
                             ` : ''}
-                            ${isHighlighted ? '<p class="text-xs text-yellow-500 mt-1"><i class="fas fa-star mr-1"></i>Swapped</p>' : ''}
+                            ${itemStatus === 'skipped' ? '<p class="text-xs text-yellow-500 mt-1"><i class="fas fa-forward mr-1"></i>Skipped</p>' : ''}
+                            ${itemStatus === 'swapped' ? '<p class="text-xs text-yellow-500 mt-1"><i class="fas fa-exchange-alt mr-1"></i>Swapped</p>' : ''}
+                            ${itemStatus === 'looted' ? '<p class="text-xs text-green-500 mt-1"><i class="fas fa-check mr-1"></i>Looted</p>' : ''}
+                            ${isHighlighted && itemStatus !== 'swapped' ? '<p class="text-xs text-yellow-500 mt-1"><i class="fas fa-star mr-1"></i>Highlighted</p>' : ''}
                         </div>
                     `;
                 }).join('')}
