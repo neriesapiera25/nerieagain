@@ -214,6 +214,9 @@ function nextRotation() {
 
 // Loot Action Modal Functions
 function showLootActionModal(lootName) {
+    console.log('showLootActionModal called for:', lootName);
+    console.log('isAdmin:', isAdmin);
+    
     const currentMember = lootRotations[lootName]?.[currentPlayerRotation[lootName]] || 'N/A';
     const loot = lootItems.find(l => l.name === lootName);
     const skipKey = `${currentMember}_${lootName}`;
@@ -638,6 +641,7 @@ function resetRotation() {
 }
 
 function renderRotation() {
+    console.log('renderRotation called, isAdmin:', isAdmin);
     const container = document.getElementById('rotation-display');
     
     // Initialize positions if needed
