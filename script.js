@@ -189,11 +189,6 @@ function nextRotation() {
 
 // Loot Action Modal Functions
 function showLootActionModal(lootName) {
-    if (!isAdmin) {
-        showNotification('Admin access required to perform loot actions!', 'error');
-        return;
-    }
-    
     const currentMember = lootRotations[lootName]?.[currentPlayerRotation[lootName]] || 'N/A';
     const loot = lootItems.find(l => l.name === lootName);
     const skipKey = `${currentMember}_${lootName}`;
@@ -217,14 +212,38 @@ function showLootActionModal(lootName) {
         document.getElementById('skipped-items-section').style.display = 'none';
     }
     
-    // Disable skip button if no skips left
+    // Disable/enable buttons based on admin status and skips
+    const lootBtn = document.getElementById('loot-btn');
     const skipBtn = document.getElementById('skip-btn');
-    if (skipsLeft === 0) {
+    const swapBtn = document.getElementById('swap-btn');
+    
+    if (!isAdmin) {
+        // Non-admin can view but not perform actions
+        lootBtn.disabled = true;
+        lootBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        lootBtn.innerHTML = '<i class="fas fa-eye mr-1"></i>View Only';
+        
         skipBtn.disabled = true;
         skipBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        
+        swapBtn.disabled = true;
+        swapBtn.classList.add('opacity-50', 'cursor-not-allowed');
     } else {
-        skipBtn.disabled = false;
-        skipBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        // Admin can perform actions
+        lootBtn.disabled = false;
+        lootBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        lootBtn.innerHTML = '<i class="fas fa-treasure-chest mr-1"></i>Loot';
+        
+        if (skipsLeft === 0) {
+            skipBtn.disabled = true;
+            skipBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        } else {
+            skipBtn.disabled = false;
+            skipBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+        
+        swapBtn.disabled = false;
+        swapBtn.classList.remove('opacity-50', 'cursor-not-allowed');
     }
     
     // Store current loot context
@@ -247,6 +266,11 @@ function hideSwapModal() {
 function lootAction(action) {
     const context = window.currentLootContext;
     if (!context) return;
+    
+    if (!isAdmin) {
+        showNotification('Admin access required to perform loot actions!', 'error');
+        return;
+    }
     
     const { lootName, currentMember } = context;
     
@@ -311,7 +335,7 @@ function handleLoot(lootName, playerName) {
             }
         }
     } else {
-        // No skipped items, advance normally
+        // No skipped items, advance normally to next player
         const rotation = lootRotations[lootName];
         if (rotation && rotation.length > 0) {
             currentPlayerRotation[lootName] = (currentPlayerRotation[lootName] + 1) % rotation.length;
@@ -364,11 +388,21 @@ function handleSkip(lootName, playerName) {
     };
     rotationHistory.unshift(historyEntry);
     
-    // Advance to next player (skipped player will get priority later)
+    // Advance to next player (store current position for later)
     const rotation = lootRotations[lootName];
     if (rotation && rotation.length > 0) {
+        // Store the current position before advancing
+        const currentPosition = currentPlayerRotation[lootName];
+        
+        // Advance to next player
         currentPlayerRotation[lootName] = (currentPlayerRotation[lootName] + 1) % rotation.length;
         currentLootState[lootName] = 'pending';
+        
+        // Store the skipped player's position for when they return
+        if (!rotation.skippedPositions) {
+            rotation.skippedPositions = {};
+        }
+        rotation.skippedPositions[playerName] = currentPosition;
     }
     
     saveData();
