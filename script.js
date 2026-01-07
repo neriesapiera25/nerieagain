@@ -242,6 +242,11 @@ function showLootActionModal(lootName) {
     const skipBtn = document.getElementById('skip-btn');
     const swapBtn = document.getElementById('swap-btn');
     
+    if (!lootBtn || !skipBtn || !swapBtn) {
+        console.error('Modal buttons not found!');
+        return;
+    }
+    
     if (!isAdmin) {
         // Non-admin can view but not perform actions
         lootBtn.disabled = true;
@@ -1854,11 +1859,14 @@ document.getElementById('swap-modal').addEventListener('click', function(e) {
     }
 });
 
-document.getElementById('add-queue-item-modal').addEventListener('click', function(e) {
-    if (e.target === this) {
-        hideAddQueueItemModal();
-    }
-});
+const addQueueModal = document.getElementById('add-queue-item-modal');
+if (addQueueModal) {
+    addQueueModal.addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideAddQueueItemModal();
+        }
+    });
+}
 
 // Allow Enter key to submit login
 document.addEventListener('keydown', function(e) {
