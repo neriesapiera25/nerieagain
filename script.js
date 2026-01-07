@@ -52,6 +52,19 @@ let isAdmin = false;
 
 // Initialize with sample data
 function initializeData() {
+    // Clear all existing data
+    guildMembers = [];
+    lootItems = [];
+    rotationHistory = [];
+    lootRotations = {};
+    lootPlayers = {};
+    playerSkipCounts = {};
+    skippedItems = [];
+    highlightedItems.clear();
+    currentLootState = {};
+    currentPlayerRotation = {};
+    rotationsToday = 0;
+    
     // Guild members from the spreadsheet
     const memberNames = [
         "Marco", "Cart", "Khin", "Nok", "Miles", "Sny", "Econg", "Pennis", 
@@ -63,38 +76,32 @@ function initializeData() {
     guildMembers = memberNames.map((name, index) => ({
         id: index + 1,
         name: name,
-        class: "member",
+        class: 'Member',
         joinDate: new Date().toISOString()
     }));
-
-    // The 5 loot items from the spreadsheet
+    
+    // Initialize with sample loot items
     lootItems = [
-        { id: 1, name: "CoC", rarity: "legendary", type: "Loot", addedDate: new Date().toISOString() },
-        { id: 2, name: "Feather", rarity: "epic", type: "Loot", addedDate: new Date().toISOString() },
-        { id: 3, name: "Flame", rarity: "epic", type: "Loot", addedDate: new Date().toISOString() },
-        { id: 4, name: "AA", rarity: "rare", type: "Loot", addedDate: new Date().toISOString() },
-        { id: 5, name: "AA (blessed)", rarity: "legendary", type: "Loot", addedDate: new Date().toISOString() }
+        { id: 1, name: 'COC', type: 'Champion', rarity: 'Legendary', addedDate: new Date().toISOString() },
+        { id: 2, name: 'AA', type: 'Armor', rarity: 'Epic', addedDate: new Date().toISOString() },
+        { id: 3, name: 'Feather', type: 'Accessory', rarity: 'Rare', addedDate: new Date().toISOString() }
     ];
-
-    // Pre-defined rotation orders from the spreadsheet
-    lootRotations = {
-        "CoC": ["Marco", "Cart", "Khin", "Nok", "Miles", "Sny", "Econg", "Pennis", "Badboy", "Akiro", "Touch", "Cap", "Conrad", "Thalium", "Guess", "Rex", "Blake", "Doz", "DeathHunter", "Kamotemaru", "DK", "Trez", "3 man arrow", "Claire"],
-        "Feather": ["Trez", "DK", "Kamotemaru", "DeathHunter", "Doz", "Blake", "Guess", "Rex", "Econg", "Conrad", "Akiro", "Touch", "Cap", "Akiro", "Badboy", "Thalium", "Pennis", "Miles", "Nok", "Khin", "Cart", "Marco", "Claire", "3man arrow"],
-        "Flame": ["Conrad", "Nok", "DeathHunter", "Kamotemaru", "Econg", "Guess", "Khin", "Doz", "Badboy", "Miles", "Touch", "Sny", "Marco", "Cap", "Blake", "Trez", "Cart", "Thalium", "Rex", "Pennis", "Akiro", "DK", "3 man arrow", "Claire"],
-        "AA": ["3 man arrow", "Guess", "Claire", "Cap", "Trez", "DeathHunter", "Miles", "Cart", "Badboy", "Sny", "Marco", "Pennis", "Nok", "Econg", "Blake", "Khin", "Kamotemaru", "Akiro", "Touch", "DK", "Conrad", "Doz", "Rex", "Thalium"],
-        "AA (blessed)": []
-    };
-
-    // Load saved data from localStorage if available
-    loadData();
-    initializeLootSystem();
-    updateStats();
-    renderRotation();
-    renderMembers();
-    renderLoot();
-    renderHistory();
-    renderQueue();
-    updateQueueStats();
+    
+    // Initialize rotations for each loot item
+    lootItems.forEach(loot => {
+        lootRotations[loot.name] = [...guildMembers].map(member => member.name);
+        lootPlayers[loot.name] = [...guildMembers].map(member => member.name);
+        currentPlayerRotation[loot.name] = 0;
+        currentLootState[loot.name] = 'pending';
+        
+        // Initialize skip counts for each player and loot combination
+        guildMembers.forEach(member => {
+            const skipKey = `${member.name}_${loot.name}`;
+            playerSkipCounts[skipKey] = 0;
+        });
+    });
+    
+    saveData();
 }
 
 // Initialize loot system
@@ -281,8 +288,36 @@ function handleLoot(lootName, playerName) {
     rotationHistory.unshift(historyEntry);
     rotationsToday++;
     
-    // Advance only this specific item to next player
-    advanceSpecificItem(lootName);
+    // Check if there are skipped items for this specific loot
+    const skippedForThisLoot = skippedItems.filter(item => item.lootName === lootName);
+    
+    if (skippedForThisLoot.length > 0) {
+        // Get the first skipped player for this loot
+        const nextSkipped = skippedForThisLoot[0];
+        const rotation = lootRotations[lootName];
+        const playerIndex = rotation.indexOf(nextSkipped.playerName);
+        
+        if (playerIndex !== -1) {
+            currentPlayerRotation[lootName] = playerIndex;
+            currentLootState[lootName] = 'pending';
+            
+            // Remove the used skipped item from the global array
+            const globalIndex = skippedItems.findIndex(item => 
+                item.lootName === nextSkipped.lootName && 
+                item.playerName === nextSkipped.playerName
+            );
+            if (globalIndex !== -1) {
+                skippedItems.splice(globalIndex, 1);
+            }
+        }
+    } else {
+        // No skipped items, advance normally
+        const rotation = lootRotations[lootName];
+        if (rotation && rotation.length > 0) {
+            currentPlayerRotation[lootName] = (currentPlayerRotation[lootName] + 1) % rotation.length;
+            currentLootState[lootName] = 'pending';
+        }
+    }
     
     // Highlight the next item for the same loot
     const rotation = lootRotations[lootName];
