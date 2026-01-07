@@ -52,7 +52,10 @@ let isAdmin = false;
 
 // Initialize with sample data
 function initializeData() {
-    // Only reset rotation state, keep existing members and loot if they exist
+    // Load saved data first
+    loadData();
+    
+    // Initialize members if not exist
     if (!guildMembers || guildMembers.length === 0) {
         // Guild members from the spreadsheet
         const memberNames = [
@@ -70,6 +73,7 @@ function initializeData() {
         }));
     }
     
+    // Initialize loot items if not exist
     if (!lootItems || lootItems.length === 0) {
         // Initialize with your custom loot items
         lootItems = [
@@ -667,11 +671,17 @@ function renderRotation() {
                             <p class="text-xs text-gray-500 mb-1">${loot.name}</p>
                             <p class="font-bold text-white text-sm sm:text-base break-words">${currentMember}</p>
                             <p class="text-xs text-gray-500 mb-2">Status: ${itemStatus}</p>
-                            ${itemStatus === 'pending' ? `
+                            ${itemStatus === 'pending' && isAdmin ? `
                                 <div class="space-y-2">
-                                    <button onclick="showLootActionModal('${loot.name}')" class="px-3 py-2 ${isAdmin ? 'bg-red-700 hover:bg-red-800' : 'bg-blue-700 hover:bg-blue-800'} text-white text-xs rounded transition w-full min-h-[44px]">
-                                        <i class="fas fa-${isAdmin ? 'treasure-chest' : 'eye'} mr-1"></i>${isAdmin ? 'Loot' : 'View Details'}
+                                    <button onclick="showLootActionModal('${loot.name}')" class="px-3 py-2 bg-red-700 text-white text-xs rounded hover:bg-red-800 transition w-full min-h-[44px]">
+                                        <i class="fas fa-treasure-chest mr-1"></i>Loot
                                     </button>
+                                    <p class="text-xs text-gray-400">Skips: ${skipsLeft}/2</p>
+                                </div>
+                            ` : ''}
+                            ${!isAdmin && itemStatus === 'pending' ? `
+                                <div class="space-y-2">
+                                    <p class="text-xs text-gray-500 italic">Admin required for loot actions</p>
                                     <p class="text-xs text-gray-400">Skips: ${skipsLeft}/2</p>
                                 </div>
                             ` : ''}
