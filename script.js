@@ -52,12 +52,37 @@ let isAdmin = false;
 
 // Initialize with sample data
 function initializeData() {
-    // Clear all existing data
-    guildMembers = [];
-    lootItems = [];
+    // Only reset rotation state, keep existing members and loot if they exist
+    if (!guildMembers || guildMembers.length === 0) {
+        // Guild members from the spreadsheet
+        const memberNames = [
+            "Marco", "Cart", "Khin", "Nok", "Miles", "Sny", "Econg", "Pennis", 
+            "Badboy", "Akiro", "Touch", "Cap", "Conrad", "Thalium", "Guess", 
+            "Rex", "Blake", "Doz", "DeathHunter", "Kamotemaru", "DK", "Trez", 
+            "3 man arrow", "Claire"
+        ];
+        
+        guildMembers = memberNames.map((name, index) => ({
+            id: index + 1,
+            name: name,
+            class: 'Member',
+            joinDate: new Date().toISOString()
+        }));
+    }
+    
+    if (!lootItems || lootItems.length === 0) {
+        // Initialize with your custom loot items
+        lootItems = [
+            { id: 1, name: 'COC', type: 'Champion', rarity: 'Legendary', addedDate: new Date().toISOString() },
+            { id: 2, name: 'AA', type: 'Armor', rarity: 'Epic', addedDate: new Date().toISOString() },
+            { id: 3, name: 'Feather', type: 'Accessory', rarity: 'Rare', addedDate: new Date().toISOString() },
+            { id: 4, name: 'Flame', type: 'Weapon', rarity: 'Epic', addedDate: new Date().toISOString() },
+            { id: 5, name: 'AA (blessed)', type: 'Armor', rarity: 'Legendary', addedDate: new Date().toISOString() }
+        ];
+    }
+    
+    // Reset rotation state only
     rotationHistory = [];
-    lootRotations = {};
-    lootPlayers = {};
     playerSkipCounts = {};
     skippedItems = [];
     highlightedItems.clear();
@@ -65,39 +90,35 @@ function initializeData() {
     currentPlayerRotation = {};
     rotationsToday = 0;
     
-    // Guild members from the spreadsheet
-    const memberNames = [
-        "Marco", "Cart", "Khin", "Nok", "Miles", "Sny", "Econg", "Pennis", 
-        "Badboy", "Akiro", "Touch", "Cap", "Conrad", "Thalium", "Guess", 
-        "Rex", "Blake", "Doz", "DeathHunter", "Kamotemaru", "DK", "Trez", 
-        "3 man arrow", "Claire"
-    ];
+    // Initialize rotations for each loot item with your custom orders
+    if (Object.keys(lootRotations).length === 0) {
+        lootRotations = {
+            "COC": ["Marco", "Cart", "Khin", "Nok", "Miles", "Sny", "Econg", "Pennis", "Badboy", "Akiro", "Touch", "Cap", "Conrad", "Thalium", "Guess", "Rex", "Blake", "Doz", "DeathHunter", "Kamotemaru", "DK", "Trez", "3 man arrow", "Claire"],
+            "Feather": ["Trez", "DK", "Kamotemaru", "DeathHunter", "Doz", "Blake", "Guess", "Rex", "Econg", "Conrad", "Akiro", "Touch", "Cap", "Akiro", "Badboy", "Thalium", "Pennis", "Miles", "Nok", "Khin", "Cart", "Marco", "Claire", "3 man arrow"],
+            "Flame": ["Conrad", "Nok", "DeathHunter", "Kamotemaru", "Econg", "Guess", "Khin", "Doz", "Badboy", "Miles", "Touch", "Sny", "Marco", "Cap", "Blake", "Trez", "Cart", "Thalium", "Rex", "Pennis", "Akiro", "DK", "3 man arrow", "Claire"],
+            "AA": ["3 man arrow", "Guess", "Claire", "Cap", "Trez", "DeathHunter", "Miles", "Cart", "Badboy", "Sny", "Marco", "Pennis", "Nok", "Econg", "Blake", "Khin", "Kamotemaru", "Akiro", "Touch", "DK", "Conrad", "Doz", "Rex", "Thalium"],
+            "AA (blessed)": []
+        };
+    }
     
-    guildMembers = memberNames.map((name, index) => ({
-        id: index + 1,
-        name: name,
-        class: 'Member',
-        joinDate: new Date().toISOString()
-    }));
-    
-    // Initialize with sample loot items
-    lootItems = [
-        { id: 1, name: 'COC', type: 'Champion', rarity: 'Legendary', addedDate: new Date().toISOString() },
-        { id: 2, name: 'AA', type: 'Armor', rarity: 'Epic', addedDate: new Date().toISOString() },
-        { id: 3, name: 'Feather', type: 'Accessory', rarity: 'Rare', addedDate: new Date().toISOString() }
-    ];
-    
-    // Initialize rotations for each loot item
+    // Initialize player lists and rotations for each loot item
     lootItems.forEach(loot => {
-        lootRotations[loot.name] = [...guildMembers].map(member => member.name);
-        lootPlayers[loot.name] = [...guildMembers].map(member => member.name);
-        currentPlayerRotation[loot.name] = 0;
-        currentLootState[loot.name] = 'pending';
+        if (!lootPlayers[loot.name]) {
+            lootPlayers[loot.name] = [...lootRotations[loot.name]];
+        }
+        if (!currentPlayerRotation[loot.name]) {
+            currentPlayerRotation[loot.name] = 0;
+        }
+        if (!currentLootState[loot.name]) {
+            currentLootState[loot.name] = 'pending';
+        }
         
         // Initialize skip counts for each player and loot combination
-        guildMembers.forEach(member => {
-            const skipKey = `${member.name}_${loot.name}`;
-            playerSkipCounts[skipKey] = 0;
+        lootRotations[loot.name].forEach(playerName => {
+            const skipKey = `${playerName}_${loot.name}`;
+            if (!playerSkipCounts[skipKey]) {
+                playerSkipCounts[skipKey] = 0;
+            }
         });
     });
     
