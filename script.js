@@ -484,7 +484,11 @@ function renderRotation() {
                             ${itemStatus === 'skipped' ? '<p class="text-xs text-yellow-500 mt-1"><i class="fas fa-forward mr-1"></i>Skipped</p>' : ''}
                             ${itemStatus === 'swapped' ? '<p class="text-xs text-yellow-500 mt-1"><i class="fas fa-exchange-alt mr-1"></i>Swapped</p>' : ''}
                             ${itemStatus === 'looted' ? '<p class="text-xs text-green-500 mt-1"><i class="fas fa-check mr-1"></i>Looted</p>' : ''}
-                            ${isHighlighted && itemStatus !== 'swapped' ? '<p class="text-xs text-yellow-500 mt-1"><i class="fas fa-star mr-1"></i>Highlighted</p>' : ''}
+                            ${isAdmin ? `
+                                <button onclick="deleteLootItem('${loot.name}')" class="mt-2 px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition w-full" title="Delete item">
+                                    <i class="fas fa-trash mr-1"></i>Delete
+                                </button>
+                            ` : ''}
                         </div>
                     `;
                 }).join('')}
