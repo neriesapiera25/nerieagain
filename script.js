@@ -42,6 +42,9 @@ let highlightedItems = new Set(); // Track highlighted swapped items
 let currentLootState = {}; // Track item states: pending, looted, skipped, swapped
 let currentPlayerRotation = {}; // Track current player for each loot item
 
+// Queue system state
+let rotationQueue = []; // Queue for new items to be added to rotation
+
 // Admin authentication
 const ADMIN_PASSWORD = 'nerie12345!';
 let isAdmin = false;
@@ -89,6 +92,8 @@ function initializeData() {
     renderMembers();
     renderLoot();
     renderHistory();
+    renderQueue();
+    updateQueueStats();
 }
 
 // Initialize loot system
@@ -855,7 +860,9 @@ function saveData() {
         skippedItems,
         highlightedItems: Array.from(highlightedItems),
         currentLootState,
-        currentPlayerRotation
+        currentPlayerRotation,
+        // Queue system
+        rotationQueue
     };
     localStorage.setItem('guildLootRotation', JSON.stringify(data));
 }
@@ -875,7 +882,165 @@ function loadData() {
         if (data.highlightedItems) highlightedItems = new Set(data.highlightedItems);
         if (data.currentLootState) currentLootState = data.currentLootState;
         if (data.currentPlayerRotation) currentPlayerRotation = data.currentPlayerRotation;
+        if (data.rotationQueue) rotationQueue = data.rotationQueue;
     }
+}
+
+// Queue Management Functions
+function showAddQueueItemModal() {
+    document.getElementById('add-queue-item-modal').classList.remove('hidden');
+}
+
+function hideAddQueueItemModal() {
+    document.getElementById('add-queue-item-modal').classList.add('hidden');
+    document.getElementById('queue-item-name').value = '';
+    document.getElementById('queue-item-rarity').value = '';
+    document.getElementById('queue-item-type').value = '';
+    document.getElementById('queue-item-priority').value = 'normal';
+}
+
+function addQueueItem() {
+    const name = document.getElementById('queue-item-name').value.trim();
+    const rarity = document.getElementById('queue-item-rarity').value;
+    const type = document.getElementById('queue-item-type').value.trim();
+    const priority = document.getElementById('queue-item-priority').value;
+    
+    if (!name || !rarity || !type) {
+        showNotification('Please fill all required fields!', 'error');
+        return;
+    }
+
+    const queueItem = {
+        id: Date.now(),
+        name: name,
+        rarity: rarity,
+        type: type,
+        priority: priority,
+        addedDate: new Date().toISOString(),
+        status: 'queued'
+    };
+
+    // Add to queue with priority ordering
+    if (priority === 'urgent') {
+        rotationQueue.unshift(queueItem);
+    } else if (priority === 'high') {
+        // Insert after urgent items
+        const urgentCount = rotationQueue.filter(item => item.priority === 'urgent').length;
+        rotationQueue.splice(urgentCount, 0, queueItem);
+    } else {
+        rotationQueue.push(queueItem);
+    }
+
+    saveData();
+    renderQueue();
+    updateQueueStats();
+    hideAddQueueItemModal();
+    showNotification(`${name} added to rotation queue!`, 'success');
+}
+
+function removeFromQueue(queueId) {
+    rotationQueue = rotationQueue.filter(item => item.id !== queueId);
+    saveData();
+    renderQueue();
+    updateQueueStats();
+    showNotification('Item removed from queue', 'info');
+}
+
+function moveToRotation(queueId) {
+    const queueItem = rotationQueue.find(item => item.id === queueId);
+    if (!queueItem) return;
+
+    // Add to loot items
+    const newLoot = {
+        id: queueItem.id,
+        name: queueItem.name,
+        rarity: queueItem.rarity,
+        type: queueItem.type,
+        addedDate: queueItem.addedDate
+    };
+
+    lootItems.push(newLoot);
+
+    // Initialize rotation for new item with all members
+    if (!lootRotations[queueItem.name]) {
+        lootRotations[queueItem.name] = guildMembers.map(member => member.name);
+    }
+
+    // Remove from queue
+    rotationQueue = rotationQueue.filter(item => item.id !== queueId);
+
+    // Initialize loot system state for new item
+    currentPlayerRotation[queueItem.name] = 0;
+    currentLootState[queueItem.name] = 'pending';
+
+    saveData();
+    renderQueue();
+    renderRotation();
+    updateQueueStats();
+    updateStats();
+    showNotification(`${queueItem.name} moved to active rotation!`, 'success');
+}
+
+function renderQueue() {
+    const container = document.getElementById('queue-list');
+    
+    if (rotationQueue.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-8 text-gray-500">
+                <i class="fas fa-clock text-4xl mb-4 opacity-30"></i>
+                <p>No items in queue. Add your first item!</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = rotationQueue.map((item, index) => {
+        const priorityColor = item.priority === 'urgent' ? 'text-red-400' : 
+                             item.priority === 'high' ? 'text-yellow-400' : 'text-gray-400';
+        const rarityColor = getRarityColor(item.rarity);
+        
+        return `
+            <div class="bg-neutral-700 rounded-lg p-3 border border-neutral-600 hover:border-red-700 transition">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center space-x-3 flex-1 min-w-0">
+                        <span class="text-lg font-bold ${priorityColor}">#${index + 1}</span>
+                        <div class="flex-1 min-w-0">
+                            <h3 class="font-bold text-white text-sm sm:text-base truncate">${item.name}</h3>
+                            <p class="text-xs text-gray-400">${item.type}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="moveToRotation(${item.id})" class="px-2 py-1 bg-green-700 text-white text-xs rounded hover:bg-green-800 transition">
+                            <i class="fas fa-arrow-right mr-1"></i>Move
+                        </button>
+                        <button onclick="removeFromQueue(${item.id})" class="text-red-500 hover:text-red-400 transition p-1">
+                            <i class="fas fa-trash text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs px-2 py-1 bg-neutral-600 rounded capitalize" style="color: ${getRarityColor(item.rarity)}">
+                        ${item.rarity}
+                    </span>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs px-2 py-1 bg-neutral-600 ${priorityColor} rounded capitalize">
+                            ${item.priority}
+                        </span>
+                        <span class="text-xs text-gray-500">
+                            Added ${new Date(item.addedDate).toLocaleDateString()}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function updateQueueStats() {
+    document.getElementById('queue-count').textContent = rotationQueue.length;
+    
+    const nextItem = rotationQueue.length > 0 ? rotationQueue[0].name : 'None';
+    document.getElementById('next-queue-item').textContent = nextItem;
 }
 
 // Randomizer Functions
@@ -1167,6 +1332,12 @@ document.getElementById('loot-action-modal').addEventListener('click', function(
 document.getElementById('swap-modal').addEventListener('click', function(e) {
     if (e.target === this) {
         hideSwapModal();
+    }
+});
+
+document.getElementById('add-queue-item-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        hideAddQueueItemModal();
     }
 });
 
