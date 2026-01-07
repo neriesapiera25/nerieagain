@@ -303,34 +303,6 @@ function handleSkip(lootName, playerName) {
     playerSkipCounts[playerName] = skipCount + 1;
     currentLootState[lootName] = 'skipped';
     
-    // If this is the second skip, remove player from all rotations
-    if (skipCount + 1 >= 2) {
-        Object.keys(lootRotations).forEach(loot => {
-            const rotation = lootRotations[loot];
-            const playerIndex = rotation.indexOf(playerName);
-            if (playerIndex !== -1) {
-                // Mark as removed but keep position for restoration later
-                if (!rotation.removedPlayers) {
-                    rotation.removedPlayers = [];
-                }
-                rotation.removedPlayers.push({
-                    name: playerName,
-                    originalIndex: playerIndex
-                });
-                rotation.splice(playerIndex, 1);
-                
-                // Adjust current rotation index if needed
-                if (currentPlayerRotation[loot] > playerIndex) {
-                    currentPlayerRotation[loot]--;
-                } else if (currentPlayerRotation[loot] >= rotation.length) {
-                    currentPlayerRotation[loot] = 0;
-                }
-            }
-        });
-        
-        showNotification(`${playerName} has reached skip limit and removed from rotation!`, 'warning');
-    }
-    
     // Log to history
     const historyEntry = {
         id: Date.now(),
@@ -351,6 +323,8 @@ function handleSkip(lootName, playerName) {
     
     if (skipCount + 1 < 2) {
         showNotification(`${playerName} skipped ${lootName} (${skipCount + 1}/2 skips used)`, 'info');
+    } else {
+        showNotification(`${playerName} has used all skips and cannot loot until rotation resets!`, 'warning');
     }
 }
 
@@ -419,6 +393,32 @@ function executeSwap(lootName, currentPlayer, targetPlayer) {
     showNotification(`${currentPlayer} swapped ${lootName} with ${targetPlayer}!`, 'success');
 }
 
+// Check if all items in rotation are complete and reset skips if needed
+function checkAndResetSkips() {
+    let allItemsComplete = true;
+    
+    lootItems.forEach(loot => {
+        const rotation = lootRotations[loot.name];
+        if (rotation && rotation.length > 0) {
+            // Check if all players in this rotation have looted
+            const allLooted = rotation.every(player => {
+                return currentLootState[loot.name] === 'looted' || 
+                       (playerSkipCounts[player] || 0) >= 2;
+            });
+            
+            if (!allLooted) {
+                allItemsComplete = false;
+            }
+        }
+    });
+    
+    // If all items are complete, reset skips
+    if (allItemsComplete) {
+        playerSkipCounts = {};
+        showNotification('Full rotation complete! All skips have been reset.', 'success');
+    }
+}
+
 function moveToNextItem() {
     // Check if there are skipped items to revisit first
     if (skippedItems.length > 0) {
@@ -444,6 +444,9 @@ function moveToNextItem() {
             }
         });
     }
+    
+    // Check if we need to reset skips
+    checkAndResetSkips();
 }
 
 function resetRotation() {
@@ -455,28 +458,13 @@ function resetRotation() {
     highlightedItems.clear();
     rotationsToday = 0;
     
-    // Restore removed players to rotations
-    Object.keys(lootRotations).forEach(loot => {
-        const rotation = lootRotations[loot];
-        if (rotation.removedPlayers && rotation.removedPlayers.length > 0) {
-            // Add back all removed players at their original positions
-            rotation.removedPlayers.forEach(removed => {
-                if (!rotation.includes(removed.name)) {
-                    rotation.splice(removed.originalIndex, 0, removed.name);
-                }
-            });
-            // Clear removed players list
-            rotation.removedPlayers = [];
-        }
-    });
-    
     // Re-initialize
     initializeLootSystem();
     
     saveData();
     renderRotation();
     updateStats();
-    showNotification('Rotation reset and all players restored!', 'info');
+    showNotification('Rotation reset to start!', 'info');
 }
 
 function renderRotation() {
@@ -522,8 +510,16 @@ function renderRotation() {
                             ` : ''}
                             ${!isAdmin && itemStatus === 'pending' ? `
                                 <div class="space-y-2">
-                                    <p class="text-xs text-gray-500 italic">Admin required for loot actions</p>
-                                    <p class="text-xs text-gray-400">Skips: ${skipsLeft}/2</p>
+                                    ${skipsLeft > 0 ? `
+                                        <button onclick="showLootActionModal('${loot.name}')" class="px-3 py-2 bg-red-700 text-white text-xs rounded hover:bg-red-800 transition w-full min-h-[44px]">
+                                            <i class="fas fa-treasure-chest mr-1"></i>Loot
+                                        </button>
+                                    ` : `
+                                        <button disabled class="px-3 py-2 bg-gray-600 text-gray-400 text-xs rounded w-full min-h-[44px] cursor-not-allowed" title="No skips left - wait for rotation reset">
+                                            <i class="fas fa-lock mr-1"></i>No Skips Left
+                                        </button>
+                                    `}
+                                    <p class="text-xs ${skipsLeft > 0 ? 'text-gray-400' : 'text-red-400'}">Skips: ${skipsLeft}/2</p>
                                 </div>
                             ` : ''}
                             ${itemStatus === 'skipped' ? '<p class="text-xs text-yellow-500 mt-1"><i class="fas fa-forward mr-1"></i>Skipped</p>' : ''}
