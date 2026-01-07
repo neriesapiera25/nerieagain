@@ -345,6 +345,9 @@ function lootAction(action) {
 }
 
 function handleLoot(lootName, playerName) {
+    console.log('handleLoot called:', lootName, playerName);
+    console.log('skippedItems before:', skippedItems);
+    
     // Clear existing highlights
     highlightedItems.clear();
     
@@ -375,12 +378,15 @@ function handleLoot(lootName, playerName) {
     
     // Check if there are skipped items for this specific loot
     const skippedForThisLoot = skippedItems.filter(item => item.lootName === lootName);
+    console.log('skippedForThisLoot:', skippedForThisLoot);
     
     if (skippedForThisLoot.length > 0) {
         // Get the first skipped player for this loot
         const nextSkipped = skippedForThisLoot[0];
         const rotation = lootRotations[lootName];
         const playerIndex = rotation.indexOf(nextSkipped.playerName);
+        
+        console.log('Setting priority to skipped player:', nextSkipped.playerName, 'at index:', playerIndex);
         
         if (playerIndex !== -1) {
             // Set current to the skipped player so they get their turn
@@ -426,6 +432,8 @@ function handleLoot(lootName, playerName) {
             renderRotation();
         }, 500); // Small delay to show the current player before advancing
     }
+    
+    console.log('Final currentPlayerRotation for', lootName, ':', currentPlayerRotation[lootName]);
     
     saveData();
     renderRotation();
