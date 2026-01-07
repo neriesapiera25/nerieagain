@@ -384,13 +384,14 @@ function moveToNextItem() {
             }
         }
     } else {
-        // Move to next item in rotation for all pending items
+        // Move to next item in rotation for all items (regardless of state)
         lootItems.forEach(loot => {
-            if (currentLootState[loot.name] === 'pending') {
-                const rotation = lootRotations[loot.name];
-                if (rotation && rotation.length > 0) {
-                    currentPlayerRotation[loot.name] = (currentPlayerRotation[loot.name] + 1) % rotation.length;
-                }
+            const rotation = lootRotations[loot.name];
+            if (rotation && rotation.length > 0) {
+                // Always advance to next player
+                currentPlayerRotation[loot.name] = (currentPlayerRotation[loot.name] + 1) % rotation.length;
+                // Reset state to pending for the new player
+                currentLootState[loot.name] = 'pending';
             }
         });
     }
