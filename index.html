@@ -106,6 +106,9 @@
                     <button onclick="showTab('rotation')" class="tab-btn px-3 py-2 sm:px-4 rounded-lg bg-red-700 text-white hover:bg-red-800 transition text-sm sm:text-base">
                         <i class="fas fa-sync-alt mr-1 sm:mr-2"></i>Rotation
                     </button>
+                    <button onclick="showTab('queue')" class="tab-btn px-3 py-2 sm:px-4 rounded-lg bg-neutral-800 text-white hover:bg-neutral-700 transition text-sm sm:text-base">
+                        <i class="fas fa-list-ol mr-1 sm:mr-2"></i>Queue
+                    </button>
                     <button onclick="showTab('members')" class="tab-btn px-3 py-2 sm:px-4 rounded-lg bg-neutral-800 text-white hover:bg-neutral-700 transition admin-only hidden text-sm sm:text-base">
                         <i class="fas fa-users mr-1 sm:mr-2"></i>Members
                     </button>
@@ -171,6 +174,50 @@
                             <p class="text-2xl font-bold text-white" id="rotations-today">0</p>
                         </div>
                         <i class="fas fa-sync-alt text-white text-2xl opacity-30"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Queue Tab -->
+        <div id="queue-tab" class="tab-content hidden">
+            <div class="bg-neutral-900 rounded-xl p-4 sm:p-6 border border-neutral-800">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0">
+                    <h2 class="text-lg sm:text-xl font-bold text-white">
+                        <i class="fas fa-list-ol mr-2"></i>Rotation Queue
+                    </h2>
+                    <button onclick="showAddQueueItemModal()" class="px-4 py-2 bg-red-700 text-white rounded-lg hover:bg-red-800 transition w-full sm:w-auto">
+                        <i class="fas fa-plus mr-2"></i>Add Item to Queue
+                    </button>
+                </div>
+                
+                <!-- Queue Stats -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                    <div class="bg-neutral-800 rounded-lg p-4 border border-neutral-700">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500 text-sm">Items in Queue</p>
+                                <p class="text-2xl font-bold text-white" id="queue-count">0</p>
+                            </div>
+                            <i class="fas fa-clock text-white text-2xl opacity-30"></i>
+                        </div>
+                    </div>
+                    <div class="bg-neutral-800 rounded-lg p-4 border border-neutral-700">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500 text-sm">Next Item</p>
+                                <p class="text-lg font-bold text-green-400" id="next-queue-item">None</p>
+                            </div>
+                            <i class="fas fa-arrow-right text-white text-2xl opacity-30"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Queue List -->
+                <div class="bg-neutral-800 rounded-lg p-4 border border-neutral-700">
+                    <h3 class="text-md font-bold text-white mb-4">Current Queue</h3>
+                    <div id="queue-list" class="space-y-2">
+                        <!-- Queue items will be displayed here -->
                     </div>
                 </div>
             </div>
@@ -398,6 +445,32 @@
             </div>
             <div class="flex justify-end space-x-3">
                 <button onclick="hideSwapModal()" class="px-4 py-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition border border-neutral-700">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Queue Item Modal -->
+    <div id="add-queue-item-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-neutral-900 rounded-xl p-4 sm:p-6 w-full max-w-md border border-neutral-800">
+            <h3 class="text-lg font-bold mb-4 text-white">Add Item to Rotation Queue</h3>
+            <input type="text" id="queue-item-name" placeholder="Item name" class="w-full px-4 py-2 bg-neutral-800 rounded-lg mb-4 text-white placeholder-gray-500 border border-neutral-700">
+            <select id="queue-item-rarity" class="w-full px-4 py-2 bg-neutral-800 rounded-lg mb-4 text-white border border-neutral-700">
+                <option value="">Select rarity</option>
+                <option value="common">Common</option>
+                <option value="uncommon">Uncommon</option>
+                <option value="rare">Rare</option>
+                <option value="epic">Epic</option>
+                <option value="legendary">Legendary</option>
+            </select>
+            <input type="text" id="queue-item-type" placeholder="Item type (e.g., Weapon, Armor)" class="w-full px-4 py-2 bg-neutral-800 rounded-lg mb-4 text-white placeholder-gray-500 border border-neutral-700">
+            <select id="queue-item-priority" class="w-full px-4 py-2 bg-neutral-800 rounded-lg mb-4 text-white border border-neutral-700">
+                <option value="normal">Normal Priority</option>
+                <option value="high">High Priority</option>
+                <option value="urgent">Urgent Priority</option>
+            </select>
+            <div class="flex justify-end space-x-3">
+                <button onclick="hideAddQueueItemModal()" class="px-4 py-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition border border-neutral-700">Cancel</button>
+                <button onclick="addQueueItem()" class="px-4 py-2 bg-red-700 text-white rounded-lg hover:bg-red-800 transition">Add to Queue</button>
             </div>
         </div>
     </div>
