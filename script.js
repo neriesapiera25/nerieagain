@@ -422,8 +422,10 @@ function checkAndResetSkips() {
 function moveToNextItem() {
     // Check if there are skipped items to revisit first
     if (skippedItems.length > 0) {
+        // Get the next skipped item
         const nextSkipped = skippedItems.shift();
-        // Set the skipped item as current
+        
+        // For the specific skipped loot, set it back to the skipped player
         const rotation = lootRotations[nextSkipped.lootName];
         if (rotation) {
             const playerIndex = rotation.indexOf(nextSkipped.playerName);
@@ -432,14 +434,23 @@ function moveToNextItem() {
                 currentLootState[nextSkipped.lootName] = 'pending';
             }
         }
+        
+        // For all other loot items, advance normally
+        lootItems.forEach(loot => {
+            if (loot.name !== nextSkipped.lootName) {
+                const rotation = lootRotations[loot.name];
+                if (rotation && rotation.length > 0) {
+                    currentPlayerRotation[loot.name] = (currentPlayerRotation[loot.name] + 1) % rotation.length;
+                    currentLootState[loot.name] = 'pending';
+                }
+            }
+        });
     } else {
-        // Move to next item in rotation for all items (regardless of state)
+        // No skipped items, advance all items normally
         lootItems.forEach(loot => {
             const rotation = lootRotations[loot.name];
             if (rotation && rotation.length > 0) {
-                // Always advance to next player
                 currentPlayerRotation[loot.name] = (currentPlayerRotation[loot.name] + 1) % rotation.length;
-                // Reset state to pending for the new player
                 currentLootState[loot.name] = 'pending';
             }
         });
