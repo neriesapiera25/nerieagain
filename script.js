@@ -214,9 +214,6 @@ function nextRotation() {
 
 // Loot Action Modal Functions
 function showLootActionModal(lootName) {
-    console.log('showLootActionModal called for:', lootName);
-    console.log('isAdmin:', isAdmin);
-    
     const currentMember = lootRotations[lootName]?.[currentPlayerRotation[lootName]] || 'N/A';
     const loot = lootItems.find(l => l.name === lootName);
     const skipKey = `${currentMember}_${lootName}`;
@@ -641,7 +638,6 @@ function resetRotation() {
 }
 
 function renderRotation() {
-    console.log('renderRotation called, isAdmin:', isAdmin);
     const container = document.getElementById('rotation-display');
     
     // Initialize positions if needed
@@ -675,17 +671,15 @@ function renderRotation() {
                             <p class="text-xs text-gray-500 mb-1">${loot.name}</p>
                             <p class="font-bold text-white text-sm sm:text-base break-words">${currentMember}</p>
                             <p class="text-xs text-gray-500 mb-2">Status: ${itemStatus}</p>
-                            ${itemStatus === 'pending' && isAdmin ? `
+                            ${itemStatus === 'pending' ? `
                                 <div class="space-y-2">
-                                    <button onclick="showLootActionModal('${loot.name}')" class="px-3 py-2 bg-red-700 text-white text-xs rounded hover:bg-red-800 transition w-full min-h-[44px]">
-                                        <i class="fas fa-treasure-chest mr-1"></i>Loot
-                                    </button>
-                                    <p class="text-xs text-gray-400">Skips: ${skipsLeft}/2</p>
-                                </div>
-                            ` : ''}
-                            ${!isAdmin && itemStatus === 'pending' ? `
-                                <div class="space-y-2">
-                                    <p class="text-xs text-gray-500 italic">Admin required for loot actions</p>
+                                    ${isAdmin ? `
+                                        <button onclick="showLootActionModal('${loot.name}')" class="px-3 py-2 bg-red-700 text-white text-xs rounded hover:bg-red-800 transition w-full min-h-[44px]">
+                                            <i class="fas fa-treasure-chest mr-1"></i>Loot
+                                        </button>
+                                    ` : `
+                                        <p class="text-xs text-gray-500 italic">Admin required for loot actions</p>
+                                    `}
                                     <p class="text-xs text-gray-400">Skips: ${skipsLeft}/2</p>
                                 </div>
                             ` : ''}
