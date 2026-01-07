@@ -130,6 +130,14 @@ function initializeData() {
         });
     });
     
+    // Special case for AA: Mark Guess and Claire as already looted
+    // 3 man arrow is at position 0 (current), after he loots Cap (position 3) should be next
+    if (!playerLootStatus["AA"]) {
+        playerLootStatus["AA"] = new Set();
+    }
+    playerLootStatus["AA"].add("Guess");
+    playerLootStatus["AA"].add("Claire");
+    
     // Clear history for tomorrow's use
     rotationHistory = [];
     
@@ -404,8 +412,17 @@ function handleLoot(lootName, playerName) {
                     window.skipPriorityLoot = { lootName, skippedPlayerIndex, resumePosition };
                 }
             } else {
-                // No skipped items, advance normally to next player
-                currentPlayerRotation[lootName] = (currentPlayerRotation[lootName] + 1) % rotation.length;
+                // No skipped items, advance normally to next non-looted player
+                let nextIndex = (currentPlayerRotation[lootName] + 1) % rotation.length;
+                let loopCount = 0;
+                
+                // Skip already looted players
+                while (playerLootStatus[lootName]?.has(rotation[nextIndex]) && loopCount < rotation.length) {
+                    nextIndex = (nextIndex + 1) % rotation.length;
+                    loopCount++;
+                }
+                
+                currentPlayerRotation[lootName] = nextIndex;
                 currentLootState[lootName] = 'pending';
             }
         }
@@ -1021,11 +1038,50 @@ function addMember() {
 }
 
 function removeMember(memberId) {
+    const member = guildMembers.find(m => m.id === memberId);
+    if (!member) return;
+    
+    const memberName = member.name;
+    
+    // Remove from guild members list
     guildMembers = guildMembers.filter(m => m.id !== memberId);
+    
+    // Remove from ALL loot rotations
+    Object.keys(lootRotations).forEach(lootName => {
+        const rotation = lootRotations[lootName];
+        const index = rotation.indexOf(memberName);
+        if (index !== -1) {
+            rotation.splice(index, 1);
+            
+            // Adjust current rotation index if needed
+            if (currentPlayerRotation[lootName] >= rotation.length) {
+                currentPlayerRotation[lootName] = 0;
+            } else if (currentPlayerRotation[lootName] > index) {
+                currentPlayerRotation[lootName]--;
+            }
+        }
+        
+        // Remove from loot status
+        if (playerLootStatus[lootName]) {
+            playerLootStatus[lootName].delete(memberName);
+        }
+    });
+    
+    // Remove from skipped items
+    skippedItems = skippedItems.filter(item => item.playerName !== memberName);
+    
+    // Remove skip counts for this member
+    Object.keys(playerSkipCounts).forEach(key => {
+        if (key.startsWith(`${memberName}_`)) {
+            delete playerSkipCounts[key];
+        }
+    });
+    
     saveData();
     renderMembers();
+    renderRotation();
     updateStats();
-    showNotification('Member removed from guild', 'info');
+    showNotification(`${memberName} removed from guild and all rotations`, 'info');
 }
 
 function renderMembers() {
