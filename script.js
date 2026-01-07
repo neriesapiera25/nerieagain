@@ -710,9 +710,11 @@ function renderLoot() {
                         <p class="text-xs text-gray-500">${loot.type}</p>
                     </div>
                 </div>
-                <button onclick="removeLoot(${loot.id})" class="text-red-500 hover:text-red-400 transition p-2 min-h-[44px]">
-                    <i class="fas fa-trash"></i>
-                </button>
+                ${isAdmin ? `
+                    <button onclick="deleteLootItem('${loot.name}')" class="text-red-500 hover:text-red-400 transition p-2 min-h-[44px]" title="Delete item">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                ` : ''}
             </div>
             <div class="flex items-center justify-between">
                 <span class="text-xs px-2 py-1 bg-neutral-700 text-gray-300 rounded capitalize">
@@ -1094,14 +1096,24 @@ function showRotationManagement(lootName) {
     const rotation = lootRotations[lootName] || [];
     
     listDiv.innerHTML = rotation.map((memberName, index) => `
-        <div class="flex items-center justify-between p-2 bg-neutral-700 rounded">
-            <div class="flex items-center space-x-3">
-                <span class="text-sm font-bold text-blue-400">#${index + 1}</span>
-                <span class="text-white">${memberName}</span>
+        <div class="flex items-center justify-between p-3 bg-neutral-700 rounded-lg border border-neutral-600">
+            <div class="flex items-center space-x-3 flex-1 min-w-0">
+                <span class="text-sm font-bold text-blue-400 flex-shrink-0">#${index + 1}</span>
+                <span class="text-white text-sm sm:text-base truncate">${memberName}</span>
             </div>
-            <button onclick="removeMemberFromRotation('${lootName}', ${index})" class="text-red-500 hover:text-red-400 transition p-1">
-                <i class="fas fa-trash text-sm"></i>
-            </button>
+            <div class="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
+                ${isAdmin ? `
+                    <button onclick="moveMemberUp('${lootName}', ${index})" class="p-2 text-blue-500 hover:text-blue-400 hover:bg-neutral-600 rounded transition min-h-[44px] min-w-[44px] flex items-center justify-center" ${index === 0 ? 'disabled style="opacity:0.3 cursor:not-allowed"' : ''} title="Move up">
+                        <i class="fas fa-arrow-up text-sm"></i>
+                    </button>
+                    <button onclick="moveMemberDown('${lootName}', ${index})" class="p-2 text-blue-500 hover:text-blue-400 hover:bg-neutral-600 rounded transition min-h-[44px] min-w-[44px] flex items-center justify-center" ${index === rotation.length - 1 ? 'disabled style="opacity:0.3 cursor:not-allowed"' : ''} title="Move down">
+                        <i class="fas fa-arrow-down text-sm"></i>
+                    </button>
+                    <button onclick="removeMemberFromRotation('${lootName}', ${index})" class="p-2 text-red-500 hover:text-red-400 hover:bg-neutral-600 rounded transition min-h-[44px] min-w-[44px] flex items-center justify-center" title="Remove from rotation">
+                        <i class="fas fa-trash text-sm"></i>
+                    </button>
+                ` : ''}
+            </div>
         </div>
     `).join('');
     
@@ -1111,7 +1123,51 @@ function showRotationManagement(lootName) {
     window.currentRotationLoot = lootName;
 }
 
+// Admin member management functions
+function moveMemberUp(lootName, index) {
+    if (!isAdmin) {
+        showNotification('Admin access required!', 'error');
+        return;
+    }
+    
+    if (index === 0) return; // Already at top
+    
+    const rotation = lootRotations[lootName];
+    if (rotation && rotation.length > index) {
+        // Swap with previous member
+        [rotation[index], rotation[index - 1]] = [rotation[index - 1], rotation[index]];
+        
+        saveData();
+        showRotationManagement(lootName);
+        renderRotation();
+        showNotification('Member moved up!', 'success');
+    }
+}
+
+function moveMemberDown(lootName, index) {
+    if (!isAdmin) {
+        showNotification('Admin access required!', 'error');
+        return;
+    }
+    
+    const rotation = lootRotations[lootName];
+    if (rotation && rotation.length > index && index < rotation.length - 1) {
+        // Swap with next member
+        [rotation[index], rotation[index + 1]] = [rotation[index + 1], rotation[index]];
+        
+        saveData();
+        showRotationManagement(lootName);
+        renderRotation();
+        showNotification('Member moved down!', 'success');
+    }
+}
+
 function addMemberToRotation() {
+    if (!isAdmin) {
+        showNotification('Admin access required!', 'error');
+        return;
+    }
+    
     if (!window.currentRotationLoot) {
         showNotification('Please select a loot item first!', 'error');
         return;
@@ -1144,6 +1200,11 @@ function addMemberToRotation() {
 }
 
 function removeMemberFromRotation(lootName, index) {
+    if (!isAdmin) {
+        showNotification('Admin access required!', 'error');
+        return;
+    }
+    
     const rotation = lootRotations[lootName];
     if (rotation && rotation.length > index) {
         const removedMember = rotation.splice(index, 1)[0];
@@ -1155,6 +1216,11 @@ function removeMemberFromRotation(lootName, index) {
 }
 
 function randomizeRotation() {
+    if (!isAdmin) {
+        showNotification('Admin access required!', 'error');
+        return;
+    }
+    
     if (!window.currentRotationLoot) {
         showNotification('Please select a loot item first!', 'error');
         return;
@@ -1174,6 +1240,35 @@ function randomizeRotation() {
     showRotationManagement(window.currentRotationLoot);
     renderRotation();
     showNotification('Rotation randomized!', 'success');
+}
+
+// Admin item management functions
+function deleteLootItem(lootName) {
+    if (!isAdmin) {
+        showNotification('Admin access required!', 'error');
+        return;
+    }
+    
+    if (confirm(`Are you sure you want to delete "${lootName}"? This will remove it from all rotations and cannot be undone.`)) {
+        // Remove from loot items
+        lootItems = lootItems.filter(item => item.name !== lootName);
+        
+        // Remove from rotations
+        delete lootRotations[lootName];
+        
+        // Remove from current states
+        delete currentLootState[lootName];
+        delete currentPlayerRotation[lootName];
+        
+        // Remove from skipped items
+        skippedItems = skippedItems.filter(item => item.lootName !== lootName);
+        
+        saveData();
+        renderRotation();
+        renderLoot();
+        updateStats();
+        showNotification(`${lootName} deleted successfully!`, 'success');
+    }
 }
 
 // Admin functions
