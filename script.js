@@ -81,9 +81,6 @@ function initializeData() {
             class: 'Member',
             joinDate: new Date().toISOString()
         }));
-        
-        // Save the initialized members
-        saveData();
     }
     
     // Initialize loot items if not exist or empty
@@ -96,22 +93,9 @@ function initializeData() {
             { id: 4, name: 'Flame', type: 'Weapon', rarity: 'Epic', addedDate: new Date().toISOString() },
             { id: 5, name: 'AA (blessed)', type: 'Armor', rarity: 'Legendary', addedDate: new Date().toISOString() }
         ];
-        
-        // Save the initialized loot items
-        saveData();
     }
     
-    // Reset rotation state only
-    rotationHistory = [];
-    playerSkipCounts = {};
-    playerLootStatus = {};
-    skippedItems = [];
-    highlightedItems.clear();
-    currentLootState = {};
-    currentPlayerRotation = {};
-    rotationsToday = 0;
-    
-    // Initialize rotations for each loot item with your custom orders
+    // Initialize rotations for each loot item with your custom orders (only if not loaded)
     if (Object.keys(lootRotations).length === 0) {
         lootRotations = {
             "COC": ["Marco", "Cart", "Khin", "Nok", "Miles", "Sny", "Econg", "Pennis", "Badboy", "Akiro", "Touch", "Cap", "Conrad", "Thalium", "Guess", "Rex", "Blake", "Doz", "DeathHunter", "Kamotemaru", "DK", "Trez", "3 man arrow", "Claire"],
@@ -125,19 +109,22 @@ function initializeData() {
     // Initialize player lists and rotations for each loot item
     lootItems.forEach(loot => {
         if (!lootPlayers[loot.name]) {
-            lootPlayers[loot.name] = [...lootRotations[loot.name]];
+            lootPlayers[loot.name] = [...(lootRotations[loot.name] || [])];
         }
-        if (!currentPlayerRotation[loot.name]) {
+        if (currentPlayerRotation[loot.name] === undefined) {
             currentPlayerRotation[loot.name] = 0;
         }
         if (!currentLootState[loot.name]) {
             currentLootState[loot.name] = 'pending';
         }
+        if (!playerLootStatus[loot.name]) {
+            playerLootStatus[loot.name] = new Set();
+        }
         
         // Initialize skip counts for each player and loot combination
-        lootRotations[loot.name].forEach(playerName => {
+        (lootRotations[loot.name] || []).forEach(playerName => {
             const skipKey = `${playerName}_${loot.name}`;
-            if (!playerSkipCounts[skipKey]) {
+            if (playerSkipCounts[skipKey] === undefined) {
                 playerSkipCounts[skipKey] = 0;
             }
         });
@@ -345,10 +332,6 @@ function lootAction(action) {
 }
 
 function handleLoot(lootName, playerName) {
-    console.log('handleLoot called:', lootName, playerName);
-    console.log('skippedItems before:', JSON.stringify(skippedItems));
-    console.log('skipPriorityLoot:', window.skipPriorityLoot);
-    
     // Clear existing highlights
     highlightedItems.clear();
     
@@ -383,22 +366,18 @@ function handleLoot(lootName, playerName) {
     if (window.skipPriorityLoot && window.skipPriorityLoot.lootName === lootName) {
         // This skipped player just looted, now resume to the next person after where we left off
         const resumePosition = window.skipPriorityLoot.resumePosition;
-        console.log('Skipped player looted, resuming to position:', resumePosition);
         currentPlayerRotation[lootName] = resumePosition;
         currentLootState[lootName] = 'pending';
         window.skipPriorityLoot = null; // Clear the priority flag
     } else {
         // Normal loot - check for skipped items
         const skippedForThisLoot = skippedItems.filter(item => item.lootName === lootName);
-        console.log('skippedForThisLoot:', skippedForThisLoot);
         
         if (rotation && rotation.length > 0) {
             if (skippedForThisLoot.length > 0) {
                 // There are skipped players, give priority to the first one
                 const nextSkipped = skippedForThisLoot[0];
                 const skippedPlayerIndex = rotation.indexOf(nextSkipped.playerName);
-                
-                console.log('Setting priority to skipped player:', nextSkipped.playerName, 'at index:', skippedPlayerIndex);
                 
                 if (skippedPlayerIndex !== -1) {
                     // Calculate where to resume after skipped player loots
@@ -420,7 +399,6 @@ function handleLoot(lootName, playerName) {
                     
                     // Store where to resume after skipped player loots
                     window.skipPriorityLoot = { lootName, skippedPlayerIndex, resumePosition };
-                    console.log('Set skipPriorityLoot with resumePosition:', resumePosition);
                 }
             } else {
                 // No skipped items, advance normally to next player
@@ -435,7 +413,8 @@ function handleLoot(lootName, playerName) {
         highlightedItems.add(lootName);
     }
     
-    console.log('Final currentPlayerRotation for', lootName, ':', currentPlayerRotation[lootName]);
+    // Check if all players have looted this item - reset and randomize if complete
+    checkRotationComplete(lootName);
     
     saveData();
     renderRotation();
@@ -443,6 +422,52 @@ function handleLoot(lootName, playerName) {
     updateStats();
     
     showNotification(`${playerName} looted ${lootName}!`, 'success');
+}
+
+// Check if rotation is complete and reset with new randomized order
+function checkRotationComplete(lootName) {
+    const rotation = lootRotations[lootName];
+    if (!rotation || rotation.length === 0) return;
+    
+    const lootedCount = playerLootStatus[lootName]?.size || 0;
+    const totalPlayers = rotation.length;
+    
+    if (lootedCount >= totalPlayers) {
+        // All players have looted! Reset and randomize
+        
+        // Log the completion
+        const completionEntry = {
+            id: Date.now(),
+            timestamp: new Date().toISOString(),
+            type: 'rotation_complete',
+            loot: lootName,
+            member: 'System',
+            action: `Full rotation complete! All ${totalPlayers} players looted. Randomizing new order...`
+        };
+        rotationHistory.unshift(completionEntry);
+        
+        // Randomize the rotation order
+        const shuffled = [...rotation].sort(() => Math.random() - 0.5);
+        lootRotations[lootName] = shuffled;
+        
+        // Reset loot status for this item
+        playerLootStatus[lootName] = new Set();
+        
+        // Reset skip counts for this item
+        shuffled.forEach(playerName => {
+            const skipKey = `${playerName}_${lootName}`;
+            playerSkipCounts[skipKey] = 0;
+        });
+        
+        // Reset to first player
+        currentPlayerRotation[lootName] = 0;
+        currentLootState[lootName] = 'pending';
+        
+        // Clear any skipped items for this loot
+        skippedItems = skippedItems.filter(item => item.lootName !== lootName);
+        
+        showNotification(`${lootName} rotation complete! New randomized order created.`, 'success');
+    }
 }
 
 function handleSkip(lootName, playerName) {
@@ -514,19 +539,36 @@ function showSwapModal(lootName, currentPlayer) {
     
     document.getElementById('swap-new-item').textContent = lootName;
     
-    // Show other members to swap with
-    const otherMembers = guildMembers.filter(m => m.name !== currentPlayer);
-    document.getElementById('equipped-items-list').innerHTML = otherMembers.map(member => `
-        <div class="bg-neutral-800 rounded p-3 border border-neutral-700 hover:border-blue-600 transition cursor-pointer" onclick="executeSwap('${lootName}', '${currentPlayer}', '${member.name}')">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="font-bold text-white text-sm">${member.name}</p>
-                    <p class="text-xs text-gray-500 capitalize">${member.class}</p>
+    // Get rotation for this loot item
+    const rotation = lootRotations[lootName] || [];
+    
+    // Filter: only show members who are in rotation and haven't looted yet
+    const availableForSwap = rotation.filter(memberName => {
+        if (memberName === currentPlayer) return false; // Can't swap with yourself
+        const hasLooted = playerLootStatus[lootName]?.has(memberName) || false;
+        return !hasLooted; // Only show if they haven't looted
+    });
+    
+    if (availableForSwap.length === 0) {
+        document.getElementById('equipped-items-list').innerHTML = `
+            <p class="text-gray-400 text-center py-4">No available members to swap with (all have already looted)</p>
+        `;
+    } else {
+        document.getElementById('equipped-items-list').innerHTML = availableForSwap.map(memberName => {
+            const memberIndex = rotation.indexOf(memberName);
+            return `
+                <div class="bg-neutral-800 rounded p-3 border border-neutral-700 hover:border-blue-600 transition cursor-pointer" onclick="executeSwap('${lootName}', '${currentPlayer}', '${memberName}')">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="font-bold text-white text-sm">${memberName}</p>
+                            <p class="text-xs text-gray-500">Position: ${memberIndex + 1}</p>
+                        </div>
+                        <i class="fas fa-exchange-alt text-blue-400"></i>
+                    </div>
                 </div>
-                <i class="fas fa-exchange-alt text-blue-400"></i>
-            </div>
-        </div>
-    `).join('');
+            `;
+        }).join('');
+    }
     
     window.currentSwapContext = { lootName, currentPlayer };
     document.getElementById('swap-modal').classList.remove('hidden');
@@ -537,6 +579,13 @@ function executeSwap(lootName, currentPlayer, targetPlayer) {
     const rotation = lootRotations[lootName];
     if (!rotation) {
         showNotification('Rotation not found!', 'error');
+        return;
+    }
+    
+    // Check if target has already looted
+    const targetHasLooted = playerLootStatus[lootName]?.has(targetPlayer) || false;
+    if (targetHasLooted) {
+        showNotification(`${targetPlayer} has already looted and cannot swap!`, 'error');
         return;
     }
     
@@ -552,21 +601,20 @@ function executeSwap(lootName, currentPlayer, targetPlayer) {
     // Swap the players in the rotation
     [rotation[currentIndex], rotation[targetIndex]] = [rotation[targetIndex], rotation[currentIndex]];
     
-    // Update current rotation index if needed
-    if (currentPlayerRotation[lootName] === currentIndex) {
-        currentPlayerRotation[lootName] = targetIndex;
-    } else if (currentPlayerRotation[lootName] === targetIndex) {
-        currentPlayerRotation[lootName] = currentIndex;
-    }
+    // The person who was swapped INTO the current position gets the loot privilege
+    // currentPlayer was at currentIndex, targetPlayer was at targetIndex
+    // After swap: targetPlayer is at currentIndex, currentPlayer is at targetIndex
+    // So the current turn should stay at currentIndex (where targetPlayer now is)
+    // This gives targetPlayer the loot privilege
     
     // Remove any existing highlight
     highlightedItems.clear();
     
-    // Mark the swapped-out item as highlighted
+    // Mark as swapped
     highlightedItems.add(lootName);
-    currentLootState[lootName] = 'swapped';
+    currentLootState[lootName] = 'pending';
     
-    // Clear skip count for current player (swap counts as loot)
+    // Clear skip count for current player (swap counts as action)
     const skipKey = `${currentPlayer}_${lootName}`;
     playerSkipCounts[skipKey] = 0;
     
@@ -578,10 +626,9 @@ function executeSwap(lootName, currentPlayer, targetPlayer) {
         loot: lootName,
         member: currentPlayer,
         targetMember: targetPlayer,
-        action: 'swapped'
+        action: `swapped positions (${currentPlayer} → position ${targetIndex + 1}, ${targetPlayer} → position ${currentIndex + 1})`
     };
     rotationHistory.unshift(historyEntry);
-    rotationsToday++;
     
     hideSwapModal();
     
@@ -590,7 +637,7 @@ function executeSwap(lootName, currentPlayer, targetPlayer) {
     renderHistory();
     updateStats();
     
-    showNotification(`${currentPlayer} swapped positions with ${targetPlayer}!`, 'success');
+    showNotification(`${currentPlayer} swapped with ${targetPlayer}! ${targetPlayer} now has loot privilege.`, 'success');
 }
 
 // Check if all items in rotation are complete and reset skips if needed
@@ -756,25 +803,26 @@ function renderRotation() {
                     
                     // Check if current player has looted this item
                     const hasLooted = playerLootStatus[loot.name]?.has(currentMember) || false;
-                    console.log(`Checkmark check for ${loot.name}: ${currentMember}, hasLooted: ${hasLooted}, playerLootStatus:`, playerLootStatus[loot.name]);
+                    
+                    // Count how many have looted this item
+                    const lootedCount = playerLootStatus[loot.name]?.size || 0;
+                    const totalPlayers = lootRotations[loot.name]?.length || 0;
                     
                     return `
-                        <div class="bg-neutral-900 rounded-lg p-3 text-center border border-neutral-700">
+                        <div class="${hasLooted ? 'bg-green-900/30 border-green-700' : 'bg-neutral-900 border-neutral-700'} rounded-lg p-3 text-center border">
                             <p class="text-xs text-gray-500 mb-1">${loot.name}</p>
                             <p class="font-bold text-white text-sm sm:text-base break-words">
                                 ${currentMember}
                                 ${hasLooted ? '<i class="fas fa-check-circle text-green-500 ml-1" title="Already looted"></i>' : ''}
                             </p>
-                            <p class="text-xs text-gray-500 mb-2">Status: ${itemStatus}</p>
+                            <p class="text-xs text-gray-400 mb-2">Looted: ${lootedCount}/${totalPlayers}</p>
                             ${itemStatus === 'pending' ? `
                                 <div class="space-y-2">
                                     ${isAdmin ? `
                                         <button onclick="showLootActionModal('${loot.name}')" class="px-3 py-2 bg-red-700 text-white text-xs rounded hover:bg-red-800 transition w-full min-h-[44px]">
                                             <i class="fas fa-treasure-chest mr-1"></i>Loot
                                         </button>
-                                    ` : `
-                                        <p class="text-xs text-gray-500 italic">Admin required for loot actions</p>
-                                    `}
+                                    ` : ''}
                                     <p class="text-xs text-gray-400">Skips: ${skipsLeft}/2</p>
                                 </div>
                             ` : ''}
@@ -1318,6 +1366,12 @@ function showNotification(message, type = 'info') {
 
 // Data persistence
 function saveData() {
+    // Convert Set objects in playerLootStatus to arrays for JSON storage
+    const playerLootStatusObj = {};
+    for (const [key, value] of Object.entries(playerLootStatus)) {
+        playerLootStatusObj[key] = value instanceof Set ? Array.from(value) : value;
+    }
+    
     const data = {
         guildMembers,
         lootItems,
@@ -1331,6 +1385,7 @@ function saveData() {
         highlightedItems: Array.from(highlightedItems),
         currentLootState,
         currentPlayerRotation,
+        playerLootStatus: playerLootStatusObj,
         // Queue system
         rotationQueue
     };
@@ -1353,6 +1408,13 @@ function loadData() {
         if (data.currentLootState) currentLootState = data.currentLootState;
         if (data.currentPlayerRotation) currentPlayerRotation = data.currentPlayerRotation;
         if (data.rotationQueue) rotationQueue = data.rotationQueue;
+        // Convert playerLootStatus arrays back to Sets
+        if (data.playerLootStatus) {
+            playerLootStatus = {};
+            for (const [key, value] of Object.entries(data.playerLootStatus)) {
+                playerLootStatus[key] = new Set(value);
+            }
+        }
     }
 }
 
