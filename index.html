@@ -193,12 +193,19 @@
         <div id="members-tab" class="tab-content hidden">
             <div class="bg-neutral-900 rounded-xl p-4 sm:p-6 border border-neutral-800">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0">
-                    <h2 class="text-lg sm:text-xl font-bold text-white">
-                        <i class="fas fa-users mr-2"></i>Guild Members
-                    </h2>
-                    <button onclick="showAddMemberModal()" class="px-4 py-2 bg-red-700 text-white rounded-lg hover:bg-red-800 transition w-full sm:w-auto">
-                        <i class="fas fa-plus mr-2"></i>Add Member
-                    </button>
+                    <div class="flex items-center space-x-3">
+                        <h2 class="text-lg sm:text-xl font-bold text-white">
+                            <i class="fas fa-users mr-2"></i>Guild Members
+                        </h2>
+                        <span id="member-view-indicator" class="px-2 py-1 bg-blue-700 text-white text-xs rounded-full hidden">
+                            <i class="fas fa-eye mr-1"></i>View Only
+                        </span>
+                    </div>
+                    <div id="admin-member-controls">
+                        <button onclick="showAddMemberModal()" class="px-4 py-2 bg-red-700 text-white rounded-lg hover:bg-red-800 transition w-full sm:w-auto">
+                            <i class="fas fa-plus mr-2"></i>Add Member
+                        </button>
+                    </div>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="members-list">
                     <!-- Members will be displayed here -->
