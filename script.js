@@ -1030,11 +1030,20 @@ function addMember() {
     };
 
     guildMembers.push(newMember);
+    
+    // Add new member to ALL loot rotations at the last position
+    Object.keys(lootRotations).forEach(lootName => {
+        if (!lootRotations[lootName].includes(name)) {
+            lootRotations[lootName].push(name);
+        }
+    });
+    
     saveData();
     renderMembers();
+    renderRotation();
     updateStats();
     hideAddMemberModal();
-    showNotification(`${name} joined the guild!`, 'success');
+    showNotification(`${name} joined the guild and added to all rotations!`, 'success');
 }
 
 function removeMember(memberId) {
@@ -1990,27 +1999,29 @@ function updateAdminUI() {
 
 // Event Timer Functions
 function updateEventTimers() {
-    const now = new Date();
-    
     // Castle Siege - Every Sunday at 5:30 PM PH time
-    updateEventCountdown('castle-siege-countdown', [0], now); // Sunday = 0
+    setEventCountdown('castle-siege-countdown', [0]); // Sunday = 0
     
     // Demon Ruler Raid - Monday and Thursday at 5:30 PM PH time
-    updateEventCountdown('demon-ruler-countdown', [1, 4], now); // Monday = 1, Thursday = 4
+    setEventCountdown('demon-ruler-countdown', [1, 4]); // Monday = 1, Thursday = 4
     
     // Battle of Gods - Tuesday and Friday at 5:30 PM PH time
-    updateEventCountdown('battle-of-gods-countdown', [2, 5], now); // Tuesday = 2, Friday = 5
+    setEventCountdown('battle-of-gods-countdown', [2, 5]); // Tuesday = 2, Friday = 5
     
     // Conquest Battle - Wednesday and Saturday at 5:30 PM PH time
-    updateEventCountdown('conquest-battle-countdown', [3, 6], now); // Wednesday = 3, Saturday = 6
+    setEventCountdown('conquest-battle-countdown', [3, 6]); // Wednesday = 3, Saturday = 6
 }
 
-function updateEventCountdown(elementId, eventDays, now) {
+function setEventCountdown(elementId, eventDays) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    
+    const now = new Date();
     const currentDay = now.getDay();
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
     
-    let daysUntil = -1;
+    let daysUntil = 7; // Default to a week
     
     // Find the next occurrence
     for (let i = 0; i <= 7; i++) {
@@ -2019,11 +2030,10 @@ function updateEventCountdown(elementId, eventDays, now) {
             if (i === 0) {
                 // Today is an event day
                 if (currentHour < 17 || (currentHour === 17 && currentMinute < 30)) {
-                    // Event hasn't happened yet today
                     daysUntil = 0;
                     break;
                 }
-                // Event already passed today, continue to find next
+                // Event already passed, continue looking
             } else {
                 daysUntil = i;
                 break;
@@ -2031,25 +2041,26 @@ function updateEventCountdown(elementId, eventDays, now) {
         }
     }
     
-    if (daysUntil === -1) daysUntil = 7; // Fallback
-    
-    // Calculate the next event time
-    let nextEvent = new Date(now);
+    // Calculate next event time
+    const nextEvent = new Date(now);
     nextEvent.setDate(nextEvent.getDate() + daysUntil);
     nextEvent.setHours(17, 30, 0, 0);
     
-    const timeUntil = nextEvent - now;
-    const days = Math.floor(timeUntil / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((timeUntil % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((timeUntil % (1000 * 60 * 60)) / (1000 * 60));
+    const diff = nextEvent - now;
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
     
-    let countdownText = 'in ';
-    if (days > 0) countdownText += `${days}d ${hours}h ${minutes}m`;
-    else if (hours > 0) countdownText += `${hours}h ${minutes}m`;
-    else countdownText += `${minutes}m`;
+    let text = '';
+    if (days > 0) {
+        text = `in ${days}d ${hours}h ${mins}m`;
+    } else if (hours > 0) {
+        text = `in ${hours}h ${mins}m`;
+    } else {
+        text = `in ${mins}m`;
+    }
     
-    const element = document.getElementById(elementId);
-    if (element) element.textContent = countdownText;
+    element.textContent = text;
 }
 
 // Boss Timer Functions
