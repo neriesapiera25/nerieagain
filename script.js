@@ -42,6 +42,7 @@ let skippedItems = []; // Global skipped items queue
 let highlightedItems = new Set(); // Track highlighted swapped items
 let currentLootState = {}; // Track item states: pending, looted, skipped, swapped
 let currentPlayerRotation = {}; // Track current player for each loot item
+let playerLootStatus = {}; // Track which players have looted for each loot item
 
 // Queue system state
 let rotationQueue = []; // Queue for new items to be added to rotation
@@ -333,6 +334,12 @@ function handleLoot(lootName, playerName) {
     
     // Mark item as looted
     currentLootState[lootName] = 'looted';
+    
+    // Track that this player has looted this item
+    if (!playerLootStatus[lootName]) {
+        playerLootStatus[lootName] = new Set();
+    }
+    playerLootStatus[lootName].add(playerName);
     
     // Clear any skip state for this player and loot item
     const skipKey = `${playerName}_${lootName}`;
@@ -637,6 +644,7 @@ function resetRotation() {
     currentPlayerRotation = {};
     currentLootState = {};
     playerSkipCounts = {};
+    playerLootStatus = {};
     skippedItems = [];
     highlightedItems.clear();
     rotationsToday = 0;
@@ -679,10 +687,16 @@ function renderRotation() {
                     const skipCount = playerSkipCounts[skipKey] || 0;
                     const skipsLeft = Math.max(0, 2 - skipCount);
                     
+                    // Check if current player has looted this item
+                    const hasLooted = playerLootStatus[loot.name]?.has(currentMember) || false;
+                    
                     return `
                         <div class="bg-neutral-900 rounded-lg p-3 text-center border border-neutral-700">
                             <p class="text-xs text-gray-500 mb-1">${loot.name}</p>
-                            <p class="font-bold text-white text-sm sm:text-base break-words">${currentMember}</p>
+                            <p class="font-bold text-white text-sm sm:text-base break-words">
+                                ${currentMember}
+                                ${hasLooted ? '<i class="fas fa-check-circle text-green-500 ml-1" title="Already looted"></i>' : ''}
+                            </p>
                             <p class="text-xs text-gray-500 mb-2">Status: ${itemStatus}</p>
                             ${itemStatus === 'pending' ? `
                                 <div class="space-y-2">
