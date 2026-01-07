@@ -1032,7 +1032,7 @@ function renderMembers() {
         container.innerHTML = `
             <div class="col-span-full text-center py-8 text-gray-500">
                 <i class="fas fa-users text-4xl mb-4 opacity-30"></i>
-                <p>No guild members yet. Add your first member!</p>
+                <p>No guild members yet.</p>
             </div>
         `;
         return;
@@ -1050,9 +1050,11 @@ function renderMembers() {
                         <p class="text-xs sm:text-sm text-gray-500 capitalize">${member.class}</p>
                     </div>
                 </div>
-                <button onclick="removeMember(${member.id})" class="text-red-500 hover:text-red-400 transition p-2 min-h-[44px]">
-                    <i class="fas fa-trash"></i>
-                </button>
+                ${isAdmin ? `
+                    <button onclick="removeMember(${member.id})" class="text-red-500 hover:text-red-400 transition p-2 min-h-[44px]">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                ` : ''}
             </div>
             <div class="text-xs text-gray-600">
                 Joined ${new Date(member.joinDate).toLocaleDateString()}
