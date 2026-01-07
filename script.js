@@ -289,8 +289,16 @@ function hideSwapModal() {
 
 // Core Loot Action Handler
 function lootAction(action) {
+    console.log('lootAction called with:', action);
+    console.log('isAdmin:', isAdmin);
+    console.log('currentLootContext:', window.currentLootContext);
+    
     const context = window.currentLootContext;
-    if (!context) return;
+    if (!context) {
+        console.log('No context found!');
+        showNotification('No loot context found!', 'error');
+        return;
+    }
     
     if (!isAdmin) {
         showNotification('Admin access required to perform loot actions!', 'error');
