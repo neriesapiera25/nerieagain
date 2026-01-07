@@ -56,7 +56,7 @@ function initializeData() {
     // Load saved data first
     loadData();
     
-    // Initialize members if not exist
+    // Initialize members if not exist or empty
     if (!guildMembers || guildMembers.length === 0) {
         // Guild members from the spreadsheet
         const memberNames = [
@@ -72,9 +72,12 @@ function initializeData() {
             class: 'Member',
             joinDate: new Date().toISOString()
         }));
+        
+        // Save the initialized members
+        saveData();
     }
     
-    // Initialize loot items if not exist
+    // Initialize loot items if not exist or empty
     if (!lootItems || lootItems.length === 0) {
         // Initialize with your custom loot items
         lootItems = [
@@ -84,11 +87,15 @@ function initializeData() {
             { id: 4, name: 'Flame', type: 'Weapon', rarity: 'Epic', addedDate: new Date().toISOString() },
             { id: 5, name: 'AA (blessed)', type: 'Armor', rarity: 'Legendary', addedDate: new Date().toISOString() }
         ];
+        
+        // Save the initialized loot items
+        saveData();
     }
     
     // Reset rotation state only
     rotationHistory = [];
     playerSkipCounts = {};
+    playerLootStatus = {};
     skippedItems = [];
     highlightedItems.clear();
     currentLootState = {};
