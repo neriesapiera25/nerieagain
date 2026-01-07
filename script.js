@@ -1927,7 +1927,8 @@ function attemptLogin() {
         isAdmin = true;
         hideAdminLoginModal();
         updateAdminUI();
-        renderRotation(); // Force re-render to update buttons
+        renderRotation();
+        renderMembers(); // Re-render members to show delete buttons
         showNotification('Logged in as Admin!', 'success');
     } else {
         document.getElementById('login-error').classList.remove('hidden');
@@ -1937,7 +1938,8 @@ function attemptLogin() {
 function logout() {
     isAdmin = false;
     updateAdminUI();
-    renderRotation(); // Force re-render to update buttons
+    renderRotation();
+    renderMembers(); // Re-render members to hide delete buttons
     showNotification('Logged out', 'info');
 }
 
@@ -1991,176 +1993,62 @@ function updateEventTimers() {
     const now = new Date();
     
     // Castle Siege - Every Sunday at 5:30 PM PH time
-    updateCastleSiegeTimer(now);
+    updateEventCountdown('castle-siege-countdown', [0], now); // Sunday = 0
     
     // Demon Ruler Raid - Monday and Thursday at 5:30 PM PH time
-    updateDemonRulerTimer(now);
+    updateEventCountdown('demon-ruler-countdown', [1, 4], now); // Monday = 1, Thursday = 4
     
     // Battle of Gods - Tuesday and Friday at 5:30 PM PH time
-    updateBattleOfGodsTimer(now);
+    updateEventCountdown('battle-of-gods-countdown', [2, 5], now); // Tuesday = 2, Friday = 5
     
     // Conquest Battle - Wednesday and Saturday at 5:30 PM PH time
-    updateConquestBattleTimer(now);
+    updateEventCountdown('conquest-battle-countdown', [3, 6], now); // Wednesday = 3, Saturday = 6
 }
 
-function updateCastleSiegeTimer(now) {
-    const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    
-    let nextSunday = new Date(now);
-    if (currentDay === 0) { // Today is Sunday
-        if (currentHour < 17 || (currentHour === 17 && currentMinute < 30)) {
-            // Event hasn't happened yet today
-            nextSunday.setHours(17, 30, 0, 0);
-        } else {
-            // Event already happened today, next Sunday
-            nextSunday.setDate(nextSunday.getDate() + 7);
-            nextSunday.setHours(17, 30, 0, 0);
-        }
-    } else {
-        // Next Sunday
-        nextSunday.setDate(nextSunday.getDate() + (7 - currentDay));
-        nextSunday.setHours(17, 30, 0, 0);
-    }
-    
-    const timeUntil = nextSunday - now;
-    const days = Math.floor(timeUntil / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((timeUntil % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((timeUntil % (1000 * 60 * 60)) / (1000 * 60));
-    
-    let countdownText = '';
-    if (days > 0) countdownText = `${days}d ${hours}h ${minutes}m`;
-    else if (hours > 0) countdownText = `${hours}h ${minutes}m`;
-    else countdownText = `${minutes}m`;
-    
-    const element = document.getElementById('castle-siege-countdown');
-    if (element) element.textContent = countdownText;
-}
-
-function updateDemonRulerTimer(now) {
+function updateEventCountdown(elementId, eventDays, now) {
     const currentDay = now.getDay();
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
     
-    let nextEvent = new Date(now);
+    let daysUntil = -1;
     
-    // Find next Monday or Thursday
-    const eventDays = [1, 4]; // Monday = 1, Thursday = 4
-    
-    for (let i = 0; i < 7; i++) {
+    // Find the next occurrence
+    for (let i = 0; i <= 7; i++) {
         const checkDay = (currentDay + i) % 7;
         if (eventDays.includes(checkDay)) {
-            if (i === 0 && (currentHour < 17 || (currentHour === 17 && currentMinute < 30))) {
-                // Event hasn't happened yet today
-                nextEvent.setHours(17, 30, 0, 0);
-            } else if (i === 0) {
-                // Event already happened today, find next one
-                continue;
+            if (i === 0) {
+                // Today is an event day
+                if (currentHour < 17 || (currentHour === 17 && currentMinute < 30)) {
+                    // Event hasn't happened yet today
+                    daysUntil = 0;
+                    break;
+                }
+                // Event already passed today, continue to find next
             } else {
-                // Future event
-                nextEvent.setDate(nextEvent.getDate() + i);
-                nextEvent.setHours(17, 30, 0, 0);
+                daysUntil = i;
+                break;
             }
-            break;
         }
     }
+    
+    if (daysUntil === -1) daysUntil = 7; // Fallback
+    
+    // Calculate the next event time
+    let nextEvent = new Date(now);
+    nextEvent.setDate(nextEvent.getDate() + daysUntil);
+    nextEvent.setHours(17, 30, 0, 0);
     
     const timeUntil = nextEvent - now;
     const days = Math.floor(timeUntil / (1000 * 60 * 60 * 24));
     const hours = Math.floor((timeUntil % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const minutes = Math.floor((timeUntil % (1000 * 60 * 60)) / (1000 * 60));
     
-    let countdownText = '';
-    if (days > 0) countdownText = `${days}d ${hours}h ${minutes}m`;
-    else if (hours > 0) countdownText = `${hours}h ${minutes}m`;
-    else countdownText = `${minutes}m`;
+    let countdownText = 'in ';
+    if (days > 0) countdownText += `${days}d ${hours}h ${minutes}m`;
+    else if (hours > 0) countdownText += `${hours}h ${minutes}m`;
+    else countdownText += `${minutes}m`;
     
-    const element = document.getElementById('demon-ruler-countdown');
-    if (element) element.textContent = countdownText;
-}
-
-function updateBattleOfGodsTimer(now) {
-    const currentDay = now.getDay();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    
-    let nextEvent = new Date(now);
-    
-    // Find next Tuesday or Friday
-    const eventDays = [2, 5]; // Tuesday = 2, Friday = 5
-    
-    for (let i = 0; i < 7; i++) {
-        const checkDay = (currentDay + i) % 7;
-        if (eventDays.includes(checkDay)) {
-            if (i === 0 && (currentHour < 17 || (currentHour === 17 && currentMinute < 30))) {
-                // Event hasn't happened yet today
-                nextEvent.setHours(17, 30, 0, 0);
-            } else if (i === 0) {
-                // Event already happened today, find next one
-                continue;
-            } else {
-                // Future event
-                nextEvent.setDate(nextEvent.getDate() + i);
-                nextEvent.setHours(17, 30, 0, 0);
-            }
-            break;
-        }
-    }
-    
-    const timeUntil = nextEvent - now;
-    const days = Math.floor(timeUntil / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((timeUntil % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((timeUntil % (1000 * 60 * 60)) / (1000 * 60));
-    
-    let countdownText = '';
-    if (days > 0) countdownText = `${days}d ${hours}h ${minutes}m`;
-    else if (hours > 0) countdownText = `${hours}h ${minutes}m`;
-    else countdownText = `${minutes}m`;
-    
-    const element = document.getElementById('battle-of-gods-countdown');
-    if (element) element.textContent = countdownText;
-}
-
-function updateConquestBattleTimer(now) {
-    const currentDay = now.getDay();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    
-    let nextEvent = new Date(now);
-    
-    // Find next Wednesday or Saturday
-    const eventDays = [3, 6]; // Wednesday = 3, Saturday = 6
-    
-    for (let i = 0; i < 7; i++) {
-        const checkDay = (currentDay + i) % 7;
-        if (eventDays.includes(checkDay)) {
-            if (i === 0 && (currentHour < 17 || (currentHour === 17 && currentMinute < 30))) {
-                // Event hasn't happened yet today
-                nextEvent.setHours(17, 30, 0, 0);
-            } else if (i === 0) {
-                // Event already happened today, find next one
-                continue;
-            } else {
-                // Future event
-                nextEvent.setDate(nextEvent.getDate() + i);
-                nextEvent.setHours(17, 30, 0, 0);
-            }
-            break;
-        }
-    }
-    
-    const timeUntil = nextEvent - now;
-    const days = Math.floor(timeUntil / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((timeUntil % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((timeUntil % (1000 * 60 * 60)) / (1000 * 60));
-    
-    let countdownText = '';
-    if (days > 0) countdownText = `${days}d ${hours}h ${minutes}m`;
-    else if (hours > 0) countdownText = `${hours}h ${minutes}m`;
-    else countdownText = `${minutes}m`;
-    
-    const element = document.getElementById('conquest-battle-countdown');
+    const element = document.getElementById(elementId);
     if (element) element.textContent = countdownText;
 }
 
