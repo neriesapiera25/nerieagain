@@ -267,8 +267,8 @@ function handleLoot(lootName, playerName) {
     rotationHistory.unshift(historyEntry);
     rotationsToday++;
     
-    // Move to next item or handle skipped items
-    moveToNextItem();
+    // Advance only this specific item to next player
+    advanceSpecificItem(lootName);
     
     // Highlight the next item for the same loot
     const rotation = lootRotations[lootName];
@@ -382,8 +382,8 @@ function executeSwap(lootName, currentPlayer, targetPlayer) {
     
     hideSwapModal();
     
-    // Move to next item
-    moveToNextItem();
+    // Advance only this specific item to next player
+    advanceSpecificItem(lootName);
     
     saveData();
     renderRotation();
