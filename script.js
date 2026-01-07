@@ -383,6 +383,7 @@ function handleLoot(lootName, playerName) {
         const playerIndex = rotation.indexOf(nextSkipped.playerName);
         
         if (playerIndex !== -1) {
+            // Set current to the skipped player so they get their turn
             currentPlayerRotation[lootName] = playerIndex;
             currentLootState[lootName] = 'pending';
             
@@ -394,6 +395,9 @@ function handleLoot(lootName, playerName) {
             if (globalIndex !== -1) {
                 skippedItems.splice(globalIndex, 1);
             }
+            
+            // Mark that this player was given priority and should advance after looting
+            window.skipPriorityLoot = { lootName, playerIndex };
         }
     } else {
         // No skipped items, advance normally to next player
@@ -408,6 +412,19 @@ function handleLoot(lootName, playerName) {
     const rotation = lootRotations[lootName];
     if (rotation && rotation.length > 0) {
         highlightedItems.add(lootName);
+    }
+    
+    // Check if this was a skip priority loot and advance to next player
+    if (window.skipPriorityLoot && window.skipPriorityLoot.lootName === lootName) {
+        // This was a skipped player getting their priority turn
+        // Now advance to the next player in rotation
+        setTimeout(() => {
+            currentPlayerRotation[lootName] = (window.skipPriorityLoot.playerIndex + 1) % rotation.length;
+            currentLootState[lootName] = 'pending';
+            window.skipPriorityLoot = null; // Clear the priority flag
+            saveData();
+            renderRotation();
+        }, 500); // Small delay to show the current player before advancing
     }
     
     saveData();
