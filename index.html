@@ -112,6 +112,9 @@
                     <button onclick="showTab('loot')" class="tab-btn px-3 py-2 sm:px-4 rounded-lg bg-neutral-800 text-white hover:bg-neutral-700 transition admin-only hidden text-sm sm:text-base">
                         <i class="fas fa-treasure-chest mr-1 sm:mr-2"></i>Loot
                     </button>
+                    <button onclick="showTab('randomizer')" class="tab-btn px-3 py-2 sm:px-4 rounded-lg bg-neutral-800 text-white hover:bg-neutral-700 transition text-sm sm:text-base">
+                        <i class="fas fa-random mr-1 sm:mr-2"></i>Randomizer
+                    </button>
                     <button onclick="showTab('history')" class="tab-btn px-3 py-2 sm:px-4 rounded-lg bg-neutral-800 text-white hover:bg-neutral-700 transition text-sm sm:text-base">
                         <i class="fas fa-history mr-1 sm:mr-2"></i>History
                     </button>
@@ -203,6 +206,60 @@
             </div>
         </div>
 
+        <!-- Randomizer Tab -->
+        <div id="randomizer-tab" class="tab-content hidden">
+            <div class="bg-neutral-900 rounded-xl p-4 sm:p-6 border border-neutral-800 mb-6">
+                <h2 class="text-lg sm:text-xl font-bold mb-4 text-white">
+                    <i class="fas fa-random mr-2"></i>Member Randomizer
+                </h2>
+                <div class="text-center mb-6">
+                    <button onclick="randomizeMembers()" class="px-6 py-3 bg-green-700 text-white rounded-lg hover:bg-green-800 transition text-lg font-medium">
+                        <i class="fas fa-dice mr-2"></i>Randomize All Members
+                    </button>
+                </div>
+                <div id="randomized-result" class="hidden">
+                    <h3 class="text-md font-bold mb-3 text-white">Randomized Order:</h3>
+                    <div class="bg-neutral-800 rounded-lg p-4 border border-neutral-700">
+                        <div id="randomized-list" class="space-y-2">
+                            <!-- Randomized members will be displayed here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rotation Management -->
+            <div class="bg-neutral-900 rounded-xl p-4 sm:p-6 border border-neutral-800">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0">
+                    <h2 class="text-lg sm:text-xl font-bold text-white">
+                        <i class="fas fa-list mr-2"></i>Rotation Management
+                    </h2>
+                    <select id="loot-select" class="px-4 py-2 bg-neutral-800 text-white rounded-lg border border-neutral-700">
+                        <option value="">Select Loot Item</option>
+                    </select>
+                </div>
+                <div id="rotation-management" class="hidden">
+                    <div class="mb-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-md font-bold text-white">Current Rotation Order</h3>
+                            <div class="space-x-2">
+                                <button onclick="addMemberToRotation()" class="px-3 py-1 bg-blue-700 text-white rounded hover:bg-blue-800 transition text-sm">
+                                    <i class="fas fa-plus mr-1"></i>Add Member
+                                </button>
+                                <button onclick="randomizeRotation()" class="px-3 py-1 bg-green-700 text-white rounded hover:bg-green-800 transition text-sm">
+                                    <i class="fas fa-random mr-1"></i>Randomize
+                                </button>
+                            </div>
+                        </div>
+                        <div class="bg-neutral-800 rounded-lg p-4 border border-neutral-700">
+                            <div id="rotation-list" class="space-y-2">
+                                <!-- Rotation members will be displayed here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Loot Tab -->
         <div id="loot-tab" class="tab-content hidden">
             <div class="bg-neutral-900 rounded-xl p-4 sm:p-6 border border-neutral-800">
@@ -278,6 +335,69 @@
             <div class="flex justify-end space-x-3">
                 <button onclick="hideAddLootModal()" class="px-4 py-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition border border-neutral-700">Cancel</button>
                 <button onclick="addLoot()" class="px-4 py-2 bg-red-700 text-white rounded-lg hover:bg-red-800 transition">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loot Action Modal -->
+    <div id="loot-action-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-neutral-900 rounded-xl p-4 sm:p-6 w-full max-w-md border border-neutral-800">
+            <h3 class="text-lg font-bold mb-4 text-white"><i class="fas fa-treasure-chest mr-2"></i>Loot Decision</h3>
+            <div class="mb-4">
+                <p class="text-sm text-gray-400 mb-2">Current Item:</p>
+                <div class="bg-neutral-800 rounded-lg p-3 border border-neutral-700">
+                    <p class="font-bold text-white" id="current-loot-name">Item Name</p>
+                    <p class="text-xs text-gray-500" id="current-loot-type">Item Type</p>
+                </div>
+            </div>
+            <div class="mb-4">
+                <p class="text-sm text-gray-400 mb-2">Current Player:</p>
+                <div class="bg-neutral-800 rounded-lg p-3 border border-neutral-700">
+                    <p class="font-bold text-white" id="current-player-name">Player Name</p>
+                    <p class="text-xs text-gray-500" id="skip-count">Skips left: 2/2</p>
+                </div>
+            </div>
+            <div class="mb-4" id="skipped-items-section" style="display: none;">
+                <p class="text-sm text-gray-400 mb-2">Skipped Items:</p>
+                <div class="space-y-2" id="skipped-items-list">
+                    <!-- Skipped items will be displayed here -->
+                </div>
+            </div>
+            <div class="grid grid-cols-3 gap-2 mb-4">
+                <button onclick="lootAction('loot')" class="px-3 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 transition text-sm font-medium min-h-[44px]">
+                    <i class="fas fa-check mr-1"></i>Loot
+                </button>
+                <button onclick="lootAction('skip')" id="skip-btn" class="px-3 py-2 bg-yellow-700 text-white rounded-lg hover:bg-yellow-800 transition text-sm font-medium min-h-[44px]">
+                    <i class="fas fa-forward mr-1"></i>Skip
+                </button>
+                <button onclick="lootAction('swap')" class="px-3 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition text-sm font-medium min-h-[44px]">
+                    <i class="fas fa-exchange-alt mr-1"></i>Swap
+                </button>
+            </div>
+            <div class="flex justify-end">
+                <button onclick="hideLootActionModal()" class="px-4 py-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition border border-neutral-700">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Swap Selection Modal -->
+    <div id="swap-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-neutral-900 rounded-xl p-4 sm:p-6 w-full max-w-md border border-neutral-800">
+            <h3 class="text-lg font-bold mb-4 text-white"><i class="fas fa-exchange-alt mr-2"></i>Select Item to Swap</h3>
+            <div class="mb-4">
+                <p class="text-sm text-gray-400 mb-2">New Item:</p>
+                <div class="bg-neutral-800 rounded-lg p-3 border border-neutral-700">
+                    <p class="font-bold text-white" id="swap-new-item">Item Name</p>
+                </div>
+            </div>
+            <div class="mb-4">
+                <p class="text-sm text-gray-400 mb-2">Your Equipped Items:</p>
+                <div class="space-y-2 max-h-40 overflow-y-auto" id="equipped-items-list">
+                    <!-- Equipped items will be displayed here -->
+                </div>
+            </div>
+            <div class="flex justify-end space-x-3">
+                <button onclick="hideSwapModal()" class="px-4 py-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition border border-neutral-700">Cancel</button>
             </div>
         </div>
     </div>

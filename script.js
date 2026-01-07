@@ -35,6 +35,13 @@ let rotationHistory = [];
 let lootRotations = {}; // Stores rotation order per loot item
 let rotationsToday = 0;
 
+// Loot system state
+let playerSkipCounts = {}; // Track skips per player per rotation
+let skippedItems = []; // Global skipped items queue
+let highlightedItems = new Set(); // Track highlighted swapped items
+let currentLootState = {}; // Track item states: pending, looted, skipped, swapped
+let currentPlayerRotation = {}; // Track current player for each loot item
+
 // Admin authentication
 const ADMIN_PASSWORD = 'nerie12345!';
 let isAdmin = false;
@@ -76,11 +83,32 @@ function initializeData() {
 
     // Load saved data from localStorage if available
     loadData();
+    initializeLootSystem();
     updateStats();
     renderRotation();
     renderMembers();
     renderLoot();
     renderHistory();
+}
+
+// Initialize loot system
+function initializeLootSystem() {
+    // Initialize current player for each loot item
+    lootItems.forEach(loot => {
+        if (!currentPlayerRotation[loot.name]) {
+            currentPlayerRotation[loot.name] = 0;
+        }
+        if (!currentLootState[loot.name]) {
+            currentLootState[loot.name] = 'pending';
+        }
+    });
+    
+    // Initialize skip counts for all members
+    guildMembers.forEach(member => {
+        if (!playerSkipCounts[member.name]) {
+            playerSkipCounts[member.name] = 0;
+        }
+    });
 }
 
 // Tab management
@@ -135,12 +163,251 @@ function nextRotation() {
     showNotification('Advanced to next rotation!', 'success');
 }
 
+// Loot Action Modal Functions
+function showLootActionModal(lootName) {
+    const currentMember = lootRotations[lootName]?.[currentPlayerRotation[lootName]] || 'N/A';
+    const loot = lootItems.find(l => l.name === lootName);
+    const skipCount = playerSkipCounts[currentMember] || 0;
+    const skipsLeft = Math.max(0, 2 - skipCount);
+    
+    document.getElementById('current-loot-name').textContent = lootName;
+    document.getElementById('current-loot-type').textContent = loot?.type || 'Loot';
+    document.getElementById('current-player-name').textContent = currentMember;
+    document.getElementById('skip-count').textContent = `Skips left: ${skipsLeft}/2`;
+    
+    // Show skipped items if any
+    if (skippedItems.length > 0) {
+        document.getElementById('skipped-items-section').style.display = 'block';
+        document.getElementById('skipped-items-list').innerHTML = skippedItems.map(item => `
+            <div class="bg-neutral-800 rounded p-2 text-xs">
+                ${item.lootName} - ${item.playerName}
+            </div>
+        `).join('');
+    } else {
+        document.getElementById('skipped-items-section').style.display = 'none';
+    }
+    
+    // Disable skip button if no skips left
+    const skipBtn = document.getElementById('skip-btn');
+    if (skipsLeft === 0) {
+        skipBtn.disabled = true;
+        skipBtn.classList.add('opacity-50', 'cursor-not-allowed');
+    } else {
+        skipBtn.disabled = false;
+        skipBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+    
+    // Store current loot context
+    window.currentLootContext = { lootName, currentMember };
+    
+    document.getElementById('loot-action-modal').classList.remove('hidden');
+}
+
+function hideLootActionModal() {
+    document.getElementById('loot-action-modal').classList.add('hidden');
+    window.currentLootContext = null;
+}
+
+function hideSwapModal() {
+    document.getElementById('swap-modal').classList.add('hidden');
+    window.currentSwapContext = null;
+}
+
+// Core Loot Action Handler
+function lootAction(action) {
+    const context = window.currentLootContext;
+    if (!context) return;
+    
+    const { lootName, currentMember } = context;
+    
+    switch(action) {
+        case 'loot':
+            handleLoot(lootName, currentMember);
+            break;
+        case 'skip':
+            handleSkip(lootName, currentMember);
+            break;
+        case 'swap':
+            handleSwap(lootName, currentMember);
+            break;
+    }
+    
+    hideLootActionModal();
+}
+
+function handleLoot(lootName, playerName) {
+    // Mark item as looted
+    currentLootState[lootName] = 'looted';
+    
+    // Clear any skip state for this player
+    playerSkipCounts[playerName] = 0;
+    
+    // Log to history
+    const historyEntry = {
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        type: 'loot',
+        loot: lootName,
+        member: playerName,
+        action: 'looted'
+    };
+    rotationHistory.unshift(historyEntry);
+    rotationsToday++;
+    
+    // Move to next item or handle skipped items
+    moveToNextItem();
+    
+    saveData();
+    renderRotation();
+    renderHistory();
+    updateStats();
+    
+    showNotification(`${playerName} looted ${lootName}!`, 'success');
+}
+
+function handleSkip(lootName, playerName) {
+    const skipCount = playerSkipCounts[playerName] || 0;
+    
+    if (skipCount >= 2) {
+        showNotification('No skips left! You must loot or swap.', 'error');
+        return;
+    }
+    
+    // Add to skipped items
+    skippedItems.push({
+        lootName,
+        playerName,
+        timestamp: Date.now()
+    });
+    
+    // Increment skip count
+    playerSkipCounts[playerName] = skipCount + 1;
+    currentLootState[lootName] = 'skipped';
+    
+    // Log to history
+    const historyEntry = {
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        type: 'skip',
+        loot: lootName,
+        member: playerName,
+        action: 'skipped'
+    };
+    rotationHistory.unshift(historyEntry);
+    
+    // Move to next item
+    moveToNextItem();
+    
+    saveData();
+    renderRotation();
+    renderHistory();
+    
+    showNotification(`${playerName} skipped ${lootName}`, 'info');
+}
+
+function handleSwap(lootName, playerName) {
+    // Show swap modal with member selection
+    showSwapModal(lootName, playerName);
+}
+
+function showSwapModal(lootName, currentPlayer) {
+    const loot = lootItems.find(l => l.name === lootName);
+    
+    document.getElementById('swap-new-item').textContent = lootName;
+    
+    // Show other members to swap with
+    const otherMembers = guildMembers.filter(m => m.name !== currentPlayer);
+    document.getElementById('equipped-items-list').innerHTML = otherMembers.map(member => `
+        <div class="bg-neutral-800 rounded p-3 border border-neutral-700 hover:border-blue-600 transition cursor-pointer" onclick="executeSwap('${lootName}', '${currentPlayer}', '${member.name}')">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="font-bold text-white text-sm">${member.name}</p>
+                    <p class="text-xs text-gray-500 capitalize">${member.class}</p>
+                </div>
+                <i class="fas fa-exchange-alt text-blue-400"></i>
+            </div>
+        </div>
+    `).join('');
+    
+    window.currentSwapContext = { lootName, currentPlayer };
+    document.getElementById('swap-modal').classList.remove('hidden');
+}
+
+function executeSwap(lootName, currentPlayer, targetPlayer) {
+    // Remove any existing highlight
+    highlightedItems.clear();
+    
+    // Mark the swapped-out item as highlighted
+    highlightedItems.add(lootName);
+    currentLootState[lootName] = 'swapped';
+    
+    // Clear skip count for current player (swap counts as loot)
+    playerSkipCounts[currentPlayer] = 0;
+    
+    // Log to history
+    const historyEntry = {
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        type: 'swap',
+        loot: lootName,
+        member: currentPlayer,
+        targetMember: targetPlayer,
+        action: 'swapped'
+    };
+    rotationHistory.unshift(historyEntry);
+    rotationsToday++;
+    
+    hideSwapModal();
+    
+    // Move to next item
+    moveToNextItem();
+    
+    saveData();
+    renderRotation();
+    renderHistory();
+    updateStats();
+    
+    showNotification(`${currentPlayer} swapped ${lootName} with ${targetPlayer}!`, 'success');
+}
+
+function moveToNextItem() {
+    // Check if there are skipped items to revisit first
+    if (skippedItems.length > 0) {
+        const nextSkipped = skippedItems.shift();
+        // Set the skipped item as current
+        const rotation = lootRotations[nextSkipped.lootName];
+        if (rotation) {
+            const playerIndex = rotation.indexOf(nextSkipped.playerName);
+            if (playerIndex !== -1) {
+                currentPlayerRotation[nextSkipped.lootName] = playerIndex;
+                currentLootState[nextSkipped.lootName] = 'pending';
+            }
+        }
+    } else {
+        // Move to next item in rotation for all pending items
+        lootItems.forEach(loot => {
+            if (currentLootState[loot.name] === 'pending') {
+                const rotation = lootRotations[loot.name];
+                if (rotation && rotation.length > 0) {
+                    currentPlayerRotation[loot.name] = (currentPlayerRotation[loot.name] + 1) % rotation.length;
+                }
+            }
+        });
+    }
+}
+
 function resetRotation() {
     currentPositions = {};
-    lootItems.forEach(loot => {
-        currentPositions[loot.name] = 0;
-    });
+    currentPlayerRotation = {};
+    currentLootState = {};
+    playerSkipCounts = {};
+    skippedItems = [];
+    highlightedItems.clear();
     rotationsToday = 0;
+    
+    // Re-initialize
+    initializeLootSystem();
+    
     saveData();
     renderRotation();
     updateStats();
@@ -155,6 +422,12 @@ function renderRotation() {
         if (currentPositions[loot.name] === undefined) {
             currentPositions[loot.name] = 0;
         }
+        if (!currentPlayerRotation[loot.name]) {
+            currentPlayerRotation[loot.name] = 0;
+        }
+        if (!currentLootState[loot.name]) {
+            currentLootState[loot.name] = 'pending';
+        }
     });
 
     container.innerHTML = `
@@ -163,20 +436,42 @@ function renderRotation() {
             <h3 class="text-base sm:text-lg font-bold text-white mb-3"><i class="fas fa-star mr-2 text-red-500"></i>Current Turn</h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
                 ${lootItems.map(loot => {
-                    const currentMember = lootRotations[loot.name]?.[currentPositions[loot.name]] || 'N/A';
+                    const currentMember = lootRotations[loot.name]?.[currentPlayerRotation[loot.name]] || 'N/A';
+                    const isHighlighted = highlightedItems.has(loot.name);
+                    const itemStatus = currentLootState[loot.name];
+                    const skipCount = playerSkipCounts[currentMember] || 0;
+                    const skipsLeft = Math.max(0, 2 - skipCount);
+                    
                     return `
-                        <div class="bg-neutral-900 rounded-lg p-3 text-center border border-neutral-700">
+                        <div class="bg-neutral-900 rounded-lg p-3 text-center border ${isHighlighted ? 'border-yellow-600 bg-yellow-900/20' : 'border-neutral-700'}">
                             <p class="text-xs text-gray-500 mb-1">${loot.name}</p>
                             <p class="font-bold text-white text-sm sm:text-base break-words">${currentMember}</p>
-                            ${isAdmin ? `
-                                <button onclick="advanceLoot('${loot.name}')" class="mt-2 px-3 py-2 bg-red-700 text-white text-xs rounded hover:bg-red-800 transition w-full min-h-[44px]">
-                                    <i class="fas fa-check mr-1"></i>Looted
-                                </button>
+                            <p class="text-xs text-gray-500 mb-2">Status: ${itemStatus}</p>
+                            ${itemStatus === 'pending' ? `
+                                <div class="space-y-2">
+                                    <button onclick="showLootActionModal('${loot.name}')" class="px-3 py-2 bg-red-700 text-white text-xs rounded hover:bg-red-800 transition w-full min-h-[44px]">
+                                        <i class="fas fa-treasure-chest mr-1"></i>Loot
+                                    </button>
+                                    <p class="text-xs text-gray-400">Skips: ${skipsLeft}/2</p>
+                                </div>
                             ` : ''}
+                            ${isHighlighted ? '<p class="text-xs text-yellow-500 mt-1"><i class="fas fa-star mr-1"></i>Swapped</p>' : ''}
                         </div>
                     `;
                 }).join('')}
             </div>
+            ${skippedItems.length > 0 ? `
+                <div class="mt-4 p-3 bg-yellow-900/20 rounded-lg border border-yellow-700/50">
+                    <p class="text-sm text-yellow-500 mb-2"><i class="fas fa-forward mr-2"></i>Skipped Items Queue:</p>
+                    <div class="flex flex-wrap gap-2">
+                        ${skippedItems.map((item, index) => `
+                            <span class="px-2 py-1 bg-yellow-800 text-yellow-200 rounded text-xs">
+                                ${item.lootName} (${item.playerName})
+                            </span>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : ''}
         </div>
 
         <div class="col-span-full overflow-x-auto">
@@ -553,7 +848,13 @@ function saveData() {
         lootRotations,
         rotationHistory,
         currentPositions,
-        rotationsToday
+        rotationsToday,
+        // New loot system state
+        playerSkipCounts,
+        skippedItems,
+        highlightedItems: Array.from(highlightedItems),
+        currentLootState,
+        currentPlayerRotation
     };
     localStorage.setItem('guildLootRotation', JSON.stringify(data));
 }
@@ -568,7 +869,145 @@ function loadData() {
         if (data.rotationHistory) rotationHistory = data.rotationHistory;
         if (data.currentPositions) currentPositions = data.currentPositions;
         if (data.rotationsToday) rotationsToday = data.rotationsToday;
+        if (data.playerSkipCounts) playerSkipCounts = data.playerSkipCounts;
+        if (data.skippedItems) skippedItems = data.skippedItems;
+        if (data.highlightedItems) highlightedItems = new Set(data.highlightedItems);
+        if (data.currentLootState) currentLootState = data.currentLootState;
+        if (data.currentPlayerRotation) currentPlayerRotation = data.currentPlayerRotation;
     }
+}
+
+// Randomizer Functions
+function randomizeMembers() {
+    if (guildMembers.length === 0) {
+        showNotification('No members to randomize!', 'error');
+        return;
+    }
+    
+    // Create a shuffled copy of members
+    const shuffled = [...guildMembers].sort(() => Math.random() - 0.5);
+    
+    // Display the result
+    const resultDiv = document.getElementById('randomized-result');
+    const listDiv = document.getElementById('randomized-list');
+    
+    listDiv.innerHTML = shuffled.map((member, index) => `
+        <div class="flex items-center space-x-3 p-2 bg-neutral-700 rounded">
+            <span class="text-lg font-bold text-green-400">#${index + 1}</span>
+            <div class="flex-1">
+                <p class="font-bold text-white">${member.name}</p>
+                <p class="text-xs text-gray-400 capitalize">${member.class}</p>
+            </div>
+        </div>
+    `).join('');
+    
+    resultDiv.classList.remove('hidden');
+    showNotification('Members randomized!', 'success');
+}
+
+// Rotation Management Functions
+function initializeRotationManagement() {
+    const select = document.getElementById('loot-select');
+    select.innerHTML = '<option value="">Select Loot Item</option>' + 
+        lootItems.map(loot => `<option value="${loot.name}">${loot.name}</option>`).join('');
+    
+    select.addEventListener('change', function() {
+        const selectedLoot = this.value;
+        if (selectedLoot) {
+            showRotationManagement(selectedLoot);
+        } else {
+            document.getElementById('rotation-management').classList.add('hidden');
+        }
+    });
+}
+
+function showRotationManagement(lootName) {
+    const managementDiv = document.getElementById('rotation-management');
+    const listDiv = document.getElementById('rotation-list');
+    
+    const rotation = lootRotations[lootName] || [];
+    
+    listDiv.innerHTML = rotation.map((memberName, index) => `
+        <div class="flex items-center justify-between p-2 bg-neutral-700 rounded">
+            <div class="flex items-center space-x-3">
+                <span class="text-sm font-bold text-blue-400">#${index + 1}</span>
+                <span class="text-white">${memberName}</span>
+            </div>
+            <button onclick="removeMemberFromRotation('${lootName}', ${index})" class="text-red-500 hover:text-red-400 transition p-1">
+                <i class="fas fa-trash text-sm"></i>
+            </button>
+        </div>
+    `).join('');
+    
+    managementDiv.classList.remove('hidden');
+    
+    // Store current loot for add operations
+    window.currentRotationLoot = lootName;
+}
+
+function addMemberToRotation() {
+    if (!window.currentRotationLoot) {
+        showNotification('Please select a loot item first!', 'error');
+        return;
+    }
+    
+    // Show available members not in rotation
+    const rotation = lootRotations[window.currentRotationLoot] || [];
+    const availableMembers = guildMembers.filter(member => !rotation.includes(member.name));
+    
+    if (availableMembers.length === 0) {
+        showNotification('All members are already in this rotation!', 'info');
+        return;
+    }
+    
+    const memberName = prompt('Available members:\n' + availableMembers.map(m => m.name).join('\n') + '\n\nEnter member name to add:');
+    
+    if (memberName && availableMembers.some(m => m.name === memberName)) {
+        if (!lootRotations[window.currentRotationLoot]) {
+            lootRotations[window.currentRotationLoot] = [];
+        }
+        lootRotations[window.currentRotationLoot].push(memberName);
+        
+        saveData();
+        showRotationManagement(window.currentRotationLoot);
+        renderRotation();
+        showNotification(`${memberName} added to rotation!`, 'success');
+    } else if (memberName) {
+        showNotification('Invalid member name!', 'error');
+    }
+}
+
+function removeMemberFromRotation(lootName, index) {
+    const rotation = lootRotations[lootName];
+    if (rotation && rotation.length > index) {
+        const removedMember = rotation.splice(index, 1)[0];
+        saveData();
+        showRotationManagement(lootName);
+        renderRotation();
+        showNotification(`${removedMember} removed from rotation!`, 'info');
+    }
+}
+
+function randomizeRotation() {
+    if (!window.currentRotationLoot) {
+        showNotification('Please select a loot item first!', 'error');
+        return;
+    }
+    
+    const rotation = lootRotations[window.currentRotationLoot];
+    if (!rotation || rotation.length === 0) {
+        showNotification('No members in rotation to randomize!', 'error');
+        return;
+    }
+    
+    // Shuffle the rotation
+    const shuffled = [...rotation].sort(() => Math.random() - 0.5);
+    lootRotations[window.currentRotationLoot] = shuffled;
+    
+    saveData();
+    showRotationManagement(window.currentRotationLoot);
+    renderRotation();
+    showNotification('Rotation randomized!', 'success');
 }
 
 // Admin functions
@@ -693,6 +1132,8 @@ function formatCountdown(ms) {
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     initializeData();
+    initializeLootSystem();
+    initializeRotationManagement();
     updateBossTimers();
     setInterval(updateBossTimers, 1000); // Update every second
 });
@@ -713,6 +1154,18 @@ document.getElementById('add-loot-modal').addEventListener('click', function(e) 
 document.getElementById('admin-login-modal').addEventListener('click', function(e) {
     if (e.target === this) {
         hideAdminLoginModal();
+    }
+});
+
+document.getElementById('loot-action-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        hideLootActionModal();
+    }
+});
+
+document.getElementById('swap-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        hideSwapModal();
     }
 });
 
