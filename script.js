@@ -803,6 +803,28 @@ function renderLoot() {
     `).join('');
 }
 
+// Helper function to format time ago
+function getTimeAgo(date) {
+    const seconds = Math.floor((new Date() - date) / 1000);
+    
+    let interval = seconds / 31536000;
+    if (interval > 1) return Math.floor(interval) + ' years ago';
+    
+    interval = seconds / 2592000;
+    if (interval > 1) return Math.floor(interval) + ' months ago';
+    
+    interval = seconds / 86400;
+    if (interval > 1) return Math.floor(interval) + ' days ago';
+    
+    interval = seconds / 3600;
+    if (interval > 1) return Math.floor(interval) + ' hours ago';
+    
+    interval = seconds / 60;
+    if (interval > 1) return Math.floor(interval) + ' minutes ago';
+    
+    return 'Just now';
+}
+
 // History
 function renderHistory() {
     const container = document.getElementById('history-list');
@@ -818,8 +840,81 @@ function renderHistory() {
     }
 
     container.innerHTML = rotationHistory.slice(0, 20).map(entry => {
-        if (entry.type === 'single') {
-            // Single loot entry
+        const date = new Date(entry.timestamp);
+        const timeAgo = getTimeAgo(date);
+        
+        if (entry.type === 'loot') {
+            // Loot entry
+            return `
+                <div class="bg-neutral-800 rounded-lg p-4 border border-neutral-700 flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-10 h-10 bg-green-700 rounded-full flex items-center justify-center">
+                            <i class="fas fa-treasure-chest text-white"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-white">
+                                <span class="text-white">${entry.member}</span> 
+                                <span class="text-green-500">looted</span> 
+                                <span class="text-red-400">${entry.loot}</span>
+                            </p>
+                            <p class="text-xs text-gray-500">${timeAgo}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm text-gray-500">${date.toLocaleDateString()}</p>
+                        <p class="text-xs text-gray-600">${date.toLocaleTimeString()}</p>
+                    </div>
+                </div>
+            `;
+        } else if (entry.type === 'skip') {
+            // Skip entry
+            return `
+                <div class="bg-neutral-800 rounded-lg p-4 border border-neutral-700 flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-10 h-10 bg-yellow-700 rounded-full flex items-center justify-center">
+                            <i class="fas fa-forward text-white"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-white">
+                                <span class="text-white">${entry.member}</span> 
+                                <span class="text-yellow-500">skipped</span> 
+                                <span class="text-red-400">${entry.loot}</span>
+                            </p>
+                            <p class="text-xs text-gray-500">${timeAgo}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm text-gray-500">${date.toLocaleDateString()}</p>
+                        <p class="text-xs text-gray-600">${date.toLocaleTimeString()}</p>
+                    </div>
+                </div>
+            `;
+        } else if (entry.type === 'swap') {
+            // Swap entry
+            return `
+                <div class="bg-neutral-800 rounded-lg p-4 border border-neutral-700 flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-10 h-10 bg-blue-700 rounded-full flex items-center justify-center">
+                            <i class="fas fa-exchange-alt text-white"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-white">
+                                <span class="text-white">${entry.member}</span> 
+                                <span class="text-blue-500">swapped</span> 
+                                <span class="text-red-400">${entry.loot}</span>
+                                ${entry.targetMember ? ` <span class="text-gray-500">with</span> <span class="text-white">${entry.targetMember}</span>` : ''}
+                            </p>
+                            <p class="text-xs text-gray-500">${timeAgo}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm text-gray-500">${date.toLocaleDateString()}</p>
+                        <p class="text-xs text-gray-600">${date.toLocaleTimeString()}</p>
+                    </div>
+                </div>
+            `;
+        } else if (entry.type === 'single') {
+            // Legacy single loot entry
             return `
                 <div class="bg-neutral-800 rounded-lg p-4 border border-neutral-700 flex items-center justify-between">
                     <div class="flex items-center space-x-4">
@@ -832,11 +927,12 @@ function renderHistory() {
                                 <span class="text-gray-500">looted</span> 
                                 <span class="text-red-400">${entry.loot}</span>
                             </p>
-                            <p class="text-xs text-gray-500">Next: ${entry.nextMember}</p>
+                            <p class="text-xs text-gray-500">Next: ${entry.nextMember} • ${timeAgo}</p>
                         </div>
                     </div>
                     <div class="text-right">
-                        <p class="text-sm text-gray-500">${new Date(entry.timestamp).toLocaleString()}</p>
+                        <p class="text-sm text-gray-500">${date.toLocaleDateString()}</p>
+                        <p class="text-xs text-gray-600">${date.toLocaleTimeString()}</p>
                     </div>
                 </div>
             `;
@@ -847,7 +943,7 @@ function renderHistory() {
                     <div class="flex items-center justify-between mb-3">
                         <h3 class="font-bold text-white">
                             <i class="fas fa-clock mr-2 text-gray-500"></i>
-                            ${new Date(entry.timestamp).toLocaleString()}
+                            ${date.toLocaleString()}
                         </h3>
                         <span class="text-sm text-gray-500">${entry.assignments?.length || 0} assignments</span>
                     </div>
