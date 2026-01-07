@@ -303,6 +303,34 @@ function handleSkip(lootName, playerName) {
     playerSkipCounts[playerName] = skipCount + 1;
     currentLootState[lootName] = 'skipped';
     
+    // If this is the second skip, remove player from all rotations
+    if (skipCount + 1 >= 2) {
+        Object.keys(lootRotations).forEach(loot => {
+            const rotation = lootRotations[loot];
+            const playerIndex = rotation.indexOf(playerName);
+            if (playerIndex !== -1) {
+                // Mark as removed but keep position for restoration later
+                if (!rotation.removedPlayers) {
+                    rotation.removedPlayers = [];
+                }
+                rotation.removedPlayers.push({
+                    name: playerName,
+                    originalIndex: playerIndex
+                });
+                rotation.splice(playerIndex, 1);
+                
+                // Adjust current rotation index if needed
+                if (currentPlayerRotation[loot] > playerIndex) {
+                    currentPlayerRotation[loot]--;
+                } else if (currentPlayerRotation[loot] >= rotation.length) {
+                    currentPlayerRotation[loot] = 0;
+                }
+            }
+        });
+        
+        showNotification(`${playerName} has reached skip limit and removed from rotation!`, 'warning');
+    }
+    
     // Log to history
     const historyEntry = {
         id: Date.now(),
@@ -321,7 +349,9 @@ function handleSkip(lootName, playerName) {
     renderRotation();
     renderHistory();
     
-    showNotification(`${playerName} skipped ${lootName}`, 'info');
+    if (skipCount + 1 < 2) {
+        showNotification(`${playerName} skipped ${lootName} (${skipCount + 1}/2 skips used)`, 'info');
+    }
 }
 
 function handleSwap(lootName, playerName) {
@@ -425,13 +455,28 @@ function resetRotation() {
     highlightedItems.clear();
     rotationsToday = 0;
     
+    // Restore removed players to rotations
+    Object.keys(lootRotations).forEach(loot => {
+        const rotation = lootRotations[loot];
+        if (rotation.removedPlayers && rotation.removedPlayers.length > 0) {
+            // Add back all removed players at their original positions
+            rotation.removedPlayers.forEach(removed => {
+                if (!rotation.includes(removed.name)) {
+                    rotation.splice(removed.originalIndex, 0, removed.name);
+                }
+            });
+            // Clear removed players list
+            rotation.removedPlayers = [];
+        }
+    });
+    
     // Re-initialize
     initializeLootSystem();
     
     saveData();
     renderRotation();
     updateStats();
-    showNotification('Rotation reset to start!', 'info');
+    showNotification('Rotation reset and all players restored!', 'info');
 }
 
 function renderRotation() {
@@ -1240,8 +1285,48 @@ function randomizeMembers() {
         </div>
     `).join('');
     
+    // Add assign button for admin
+    if (isAdmin) {
+        listDiv.innerHTML += `
+            <div class="mt-4 p-3 bg-neutral-800 rounded-lg border border-neutral-700">
+                <p class="text-sm text-gray-400 mb-2">Assign this order to loot items:</p>
+                <div class="space-y-2">
+                    ${lootItems.map(loot => `
+                        <button onclick="assignRandomizedOrder('${loot.name}')" class="w-full px-3 py-2 bg-blue-700 text-white rounded hover:bg-blue-800 transition text-sm">
+                            <i class="fas fa-arrow-right mr-1"></i>Assign to ${loot.name}
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
+    // Store the shuffled order for assignment
+    window.randomizedOrder = shuffled;
+    
     resultDiv.classList.remove('hidden');
     showNotification('Members randomized!', 'success');
+}
+
+function assignRandomizedOrder(lootName) {
+    if (!window.randomizedOrder) {
+        showNotification('No randomized order available!', 'error');
+        return;
+    }
+    
+    if (!isAdmin) {
+        showNotification('Admin access required!', 'error');
+        return;
+    }
+    
+    // Assign the randomized order to the specified loot
+    lootRotations[lootName] = window.randomizedOrder.map(member => member.name);
+    currentPlayerRotation[lootName] = 0;
+    currentLootState[lootName] = 'pending';
+    
+    saveData();
+    renderRotation();
+    showNotification(`Randomized order assigned to ${lootName}!`, 'success');
 }
 
 // Rotation Management Functions
