@@ -2773,22 +2773,6 @@ function saveMemberClass(memberId) {
     showNotification(`${member.name}'s class updated to ${newClass}!`, 'success');
 }
 
-// ==================== UPDATED ADMIN LOGIN ====================
-function toggleAdminLogin() {
-    if (isAdmin) {
-        // Logout
-        isAdmin = false;
-        isMainAdmin = false;
-        currentAdminName = '';
-        currentAdminRole = '';
-        updateAdminUI();
-        showNotification('Logged out successfully', 'info');
-    } else {
-        // Show login modal
-        document.getElementById('admin-login-modal').classList.remove('hidden');
-    }
-}
-
 function attemptLogin() {
     const password = document.getElementById('admin-password').value;
     
@@ -2801,6 +2785,11 @@ function attemptLogin() {
         
         hideAdminLoginModal();
         updateAdminUI();
+        renderRotation();
+        renderMembers();
+        renderLoot();
+        renderHistory();
+        updateStats();
         logAdminAction('login', `${account.name} logged in`);
         showNotification(`Welcome, ${account.name}!`, 'success');
     } else {
@@ -2809,12 +2798,6 @@ function attemptLogin() {
             document.getElementById('login-error').classList.add('hidden');
         }, 3000);
     }
-}
-
-function hideAdminLoginModal() {
-    document.getElementById('admin-login-modal').classList.add('hidden');
-    document.getElementById('admin-password').value = '';
-    document.getElementById('login-error').classList.add('hidden');
 }
 
 function updateAdminUI() {
@@ -2848,4 +2831,11 @@ function updateAdminUI() {
         renderAdminLogs();
         renderBogTeams();
     }
+
+    // Ensure UI reflects current permissions immediately
+    renderRotation();
+    renderMembers();
+    renderLoot();
+    renderHistory();
+    updateStats();
 }
