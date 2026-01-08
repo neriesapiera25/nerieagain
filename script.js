@@ -2114,74 +2114,21 @@ function showAdminLoginModal() {
 
 function hideAdminLoginModal() {
     document.getElementById('admin-login-modal').classList.add('hidden');
-}
-
-function attemptLogin() {
-    const password = document.getElementById('admin-password').value;
-    if (password === ADMIN_PASSWORD) {
-        isAdmin = true;
-        hideAdminLoginModal();
-        updateAdminUI();
-        renderRotation();
-        renderMembers(); // Re-render members to show delete buttons
-        showNotification('Logged in as Admin!', 'success');
-    } else {
-        document.getElementById('login-error').classList.remove('hidden');
-    }
+    document.getElementById('admin-password').value = '';
+    document.getElementById('login-error').classList.add('hidden');
 }
 
 function logout() {
     isAdmin = false;
+    isMainAdmin = false;
+    currentAdminName = '';
+    currentAdminRole = '';
     updateAdminUI();
     renderRotation();
     renderMembers(); // Re-render members to hide delete buttons
     showNotification('Logged out', 'info');
 }
 
-function updateAdminUI() {
-    const adminElements = document.querySelectorAll('.admin-only');
-    const adminBtn = document.getElementById('admin-btn');
-    const adminBtnText = document.getElementById('admin-btn-text');
-    const memberViewIndicator = document.getElementById('member-view-indicator');
-    const adminMemberControls = document.getElementById('admin-member-controls');
-    const randomizerTab = document.getElementById('randomizer-tab');
-    const randomizerTabBtn = document.querySelector('[onclick="showTab(\'randomizer\')"]');
-    
-    if (isAdmin) {
-        adminElements.forEach(el => el.classList.remove('hidden'));
-        adminBtn.classList.remove('bg-red-800', 'hover:bg-red-900');
-        adminBtn.classList.add('bg-neutral-700', 'hover:bg-neutral-600');
-        adminBtnText.textContent = 'Logout';
-        adminBtn.querySelector('i').classList.remove('fa-lock');
-        adminBtn.querySelector('i').classList.add('fa-unlock');
-        
-        // Show admin member controls
-        if (adminMemberControls) adminMemberControls.classList.remove('hidden');
-        if (memberViewIndicator) memberViewIndicator.classList.add('hidden');
-        
-        // Show randomizer tab and button
-        if (randomizerTab) randomizerTab.classList.remove('admin-only');
-        if (randomizerTabBtn) randomizerTabBtn.classList.remove('admin-only');
-    } else {
-        adminElements.forEach(el => el.classList.add('hidden'));
-        adminBtn.classList.remove('bg-neutral-700', 'hover:bg-neutral-600');
-        adminBtn.classList.add('bg-red-800', 'hover:bg-red-900');
-        adminBtnText.textContent = 'Admin Login';
-        adminBtn.querySelector('i').classList.remove('fa-unlock');
-        adminBtn.querySelector('i').classList.add('fa-lock');
-        
-        // Hide admin member controls and show view-only indicator
-        if (adminMemberControls) adminMemberControls.classList.add('hidden');
-        if (memberViewIndicator) memberViewIndicator.classList.remove('hidden');
-        
-        // Hide randomizer tab and button
-        if (randomizerTab) randomizerTab.classList.add('admin-only');
-        if (randomizerTabBtn) randomizerTabBtn.classList.add('admin-only');
-    }
-    
-    // Re-render rotation to show/hide controls
-    renderRotation();
-}
 
 // Event Timer Functions
 function updateEventTimers() {
