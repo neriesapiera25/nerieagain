@@ -56,8 +56,9 @@ const ADMIN_PASSWORD = 'nerie12345!';
 let isAdmin = false;
 
 // Database and real-time sync
-let socket = null;
 let isOnline = false;
+let lastServerUpdate = null;
+let pollInterval = null;
 
 // Initialize with sample data
 function initializeData() {
@@ -1431,47 +1432,45 @@ function showNotification(message, type = 'info') {
 }
 
 // Data persistence
-// Initialize database connection and real-time sync
+// Initialize database connection and polling-based sync
 function initializeDatabase() {
-    // Try to connect to the server first
-    try {
-        socket = io();
-        isOnline = true;
-        
-        socket.on('connect', () => {
-            console.log('Connected to server');
-            isOnline = true;
-            updateConnectionStatus(true);
-            showNotification('Connected to server - Real-time sync enabled', 'success');
-        });
-        
-        socket.on('disconnect', () => {
-            console.log('Disconnected from server');
-            isOnline = false;
-            updateConnectionStatus(false);
-            showNotification('Disconnected from server - Using local storage', 'warning');
-        });
-        
-        socket.on('dataUpdate', (data) => {
-            console.log('Received data update from server');
-            applyDataUpdate(data);
-        });
-        
-        socket.on('error', (error) => {
-            console.error('Socket error:', error);
-            isOnline = false;
-        });
-        
-        // Load initial data from server
-        loadDataFromServer();
-        
-    } catch (error) {
-        console.error('Failed to initialize database connection:', error);
-        isOnline = false;
-        updateConnectionStatus(false);
-        // Fallback to localStorage
-        loadData();
+    // Try to load from server first
+    loadDataFromServer();
+    
+    // Start polling for updates every 3 seconds
+    startPolling();
+}
+
+// Start polling for updates from server
+function startPolling() {
+    if (pollInterval) {
+        clearInterval(pollInterval);
     }
+    
+    pollInterval = setInterval(async () => {
+        try {
+            const response = await fetch('/api/data');
+            if (response.ok) {
+                const data = await response.json();
+                // Only update if server has newer data
+                if (data.lastUpdated && data.lastUpdated !== lastServerUpdate) {
+                    lastServerUpdate = data.lastUpdated;
+                    applyDataUpdate(data, true); // true = from server
+                    console.log('Data synced from server');
+                }
+                if (!isOnline) {
+                    isOnline = true;
+                    updateConnectionStatus(true);
+                }
+            }
+        } catch (error) {
+            if (isOnline) {
+                isOnline = false;
+                updateConnectionStatus(false);
+                console.log('Server connection lost, using local storage');
+            }
+        }
+    }, 3000); // Poll every 3 seconds
 }
 
 // Load data from server API
@@ -1480,38 +1479,46 @@ async function loadDataFromServer() {
         const response = await fetch('/api/data');
         if (response.ok) {
             const data = await response.json();
-            applyDataUpdate(data);
+            lastServerUpdate = data.lastUpdated;
+            applyDataUpdate(data, true);
+            isOnline = true;
+            updateConnectionStatus(true);
             console.log('Data loaded from server');
+            showNotification('Connected to database - Sync enabled', 'success');
         } else {
             throw new Error('Failed to load data from server');
         }
     } catch (error) {
         console.error('Error loading data from server:', error);
+        isOnline = false;
+        updateConnectionStatus(false);
         // Fallback to localStorage
         loadData();
+        showNotification('Offline mode - Using local storage', 'warning');
     }
 }
 
 // Apply data update from server
-function applyDataUpdate(data) {
+function applyDataUpdate(data, fromServer = false) {
     if (data.guildMembers) guildMembers = data.guildMembers;
     if (data.lootItems) lootItems = data.lootItems;
     if (data.lootRotations) lootRotations = data.lootRotations;
     if (data.rotationHistory) rotationHistory = data.rotationHistory;
     if (data.currentPositions) currentPositions = data.currentPositions;
-    if (data.rotationsToday) rotationsToday = data.rotationsToday;
+    if (data.rotationsToday !== undefined) rotationsToday = data.rotationsToday;
     if (data.playerSkipCounts) playerSkipCounts = data.playerSkipCounts;
     if (data.skippedItems) skippedItems = data.skippedItems;
     if (data.highlightedItems) highlightedItems = new Set(data.highlightedItems);
     if (data.currentLootState) currentLootState = data.currentLootState;
     if (data.currentPlayerRotation) currentPlayerRotation = data.currentPlayerRotation;
     if (data.rotationQueue) rotationQueue = data.rotationQueue;
+    if (data.lootPlayers) lootPlayers = data.lootPlayers;
     
     // Convert playerLootStatus arrays back to Sets
     if (data.playerLootStatus) {
         playerLootStatus = {};
         for (const [key, value] of Object.entries(data.playerLootStatus)) {
-            playerLootStatus[key] = new Set(value);
+            playerLootStatus[key] = new Set(Array.isArray(value) ? value : []);
         }
     }
     
@@ -1523,7 +1530,7 @@ function applyDataUpdate(data) {
     updateStats();
 }
 
-function saveData() {
+async function saveData() {
     // Convert Set objects in playerLootStatus to arrays for JSON storage
     const playerLootStatusObj = {};
     for (const [key, value] of Object.entries(playerLootStatus)) {
@@ -1534,6 +1541,7 @@ function saveData() {
         guildMembers,
         lootItems,
         lootRotations,
+        lootPlayers,
         rotationHistory,
         currentPositions,
         rotationsToday,
@@ -1548,12 +1556,31 @@ function saveData() {
         rotationQueue
     };
     
-    if (isOnline && socket) {
-        // Save to server and broadcast to other clients
-        socket.emit('dataUpdate', data);
-    } else {
-        // Fallback to localStorage
-        localStorage.setItem('guildLootRotation', JSON.stringify(data));
+    // Always save to localStorage as backup
+    localStorage.setItem('guildLootRotation', JSON.stringify(data));
+    
+    // Try to save to server
+    if (isOnline) {
+        try {
+            const response = await fetch('/api/data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                lastServerUpdate = result.lastUpdated;
+                console.log('Data saved to server');
+            } else {
+                throw new Error('Failed to save to server');
+            }
+        } catch (error) {
+            console.error('Error saving to server:', error);
+            // Data is already saved to localStorage
+        }
     }
 }
 

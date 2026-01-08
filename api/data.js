@@ -1,49 +1,25 @@
-const express = require('express');
-const http = require('http');
-const socketIo = require('socket.io');
-const cors = require('cors');
 const { MongoClient } = require('mongodb');
 
-const app = express();
-const server = http.createServer(app);
-
-// Configure Socket.io for Vercel
-const io = socketIo(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  }
-});
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.static('.'));
-
-// MongoDB connection
-let db;
-let guildDataCollection;
+// MongoDB connection cache for serverless
+let cachedClient = null;
+let cachedDb = null;
 
 async function connectToDatabase() {
-  try {
-    const client = new MongoClient(process.env.MONGODB_URI);
-    await client.connect();
-    db = client.db();
-    guildDataCollection = db.collection('guildData');
-    console.log('Connected to MongoDB');
-    
-    // Initialize default data if empty
-    const existingData = await guildDataCollection.findOne({ type: 'main' });
-    if (!existingData) {
-      await initializeDefaultData();
-    }
-  } catch (error) {
-    console.error('MongoDB connection error:', error);
-    throw error;
+  if (cachedClient && cachedDb) {
+    return { client: cachedClient, db: cachedDb };
   }
+
+  const client = new MongoClient(process.env.MONGODB_URI);
+  await client.connect();
+  const db = client.db('guildLootRotation');
+  
+  cachedClient = client;
+  cachedDb = db;
+  
+  return { client, db };
 }
 
-async function initializeDefaultData() {
+async function initializeDefaultData(collection) {
   const defaultData = {
     type: 'main',
     guildMembers: [
@@ -99,83 +75,57 @@ async function initializeDefaultData() {
     lastUpdated: new Date().toISOString()
   };
   
-  await guildDataCollection.insertOne(defaultData);
-  console.log('Default data initialized');
+  await collection.insertOne(defaultData);
+  return defaultData;
 }
 
-// API Routes
-app.get('/api/data', async (req, res) => {
-  try {
-    const data = await guildDataCollection.findOne({ type: 'main' });
-    if (!data) {
-      return res.status(404).json({ error: 'Data not found' });
-    }
-    res.json(data);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch data' });
-  }
-});
+module.exports = async function handler(req, res) {
+  // Set CORS headers
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-app.post('/api/data', async (req, res) => {
-  try {
-    const updateData = {
-      ...req.body,
-      lastUpdated: new Date().toISOString()
-    };
-    
-    await guildDataCollection.updateOne(
-      { type: 'main' },
-      { $set: updateData },
-      { upsert: true }
-    );
-    
-    // Broadcast update to all connected clients
-    io.emit('dataUpdate', updateData);
-    
-    res.json({ success: true, message: 'Data updated successfully' });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to update data' });
+  // Handle preflight request
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
   }
-});
 
-// Socket.io connection handling
-io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
-  
-  // Send current data to newly connected client
-  guildDataCollection.findOne({ type: 'main' }).then(data => {
-    if (data) {
-      socket.emit('dataUpdate', data);
-    }
-  });
-  
-  socket.on('dataUpdate', async (data) => {
-    try {
+  try {
+    const { db } = await connectToDatabase();
+    const collection = db.collection('guildData');
+
+    if (req.method === 'GET') {
+      let data = await collection.findOne({ type: 'main' });
+      
+      // Initialize default data if not exists
+      if (!data) {
+        data = await initializeDefaultData(collection);
+      }
+      
+      res.status(200).json(data);
+    } 
+    else if (req.method === 'POST') {
       const updateData = {
-        ...data,
+        ...req.body,
+        type: 'main',
         lastUpdated: new Date().toISOString()
       };
       
-      await guildDataCollection.updateOne(
+      await collection.updateOne(
         { type: 'main' },
         { $set: updateData },
         { upsert: true }
       );
       
-      // Broadcast to all other clients
-      socket.broadcast.emit('dataUpdate', updateData);
-    } catch (error) {
-      socket.emit('error', { message: 'Failed to update data' });
+      res.status(200).json({ success: true, message: 'Data updated successfully', lastUpdated: updateData.lastUpdated });
+    } 
+    else {
+      res.status(405).json({ error: 'Method not allowed' });
     }
-  });
-  
-  socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
-  });
-});
-
-// Initialize database connection
-connectToDatabase().catch(console.error);
-
-// Export for Vercel
-module.exports = app;
+  } catch (error) {
+    console.error('API Error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+};
