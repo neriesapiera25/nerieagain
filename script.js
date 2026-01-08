@@ -51,9 +51,47 @@ let playerLootStatus = {}; // Track which players have looted for each loot item
 // Queue system state
 let rotationQueue = []; // Queue for new items to be added to rotation
 
-// Admin authentication
-const ADMIN_PASSWORD = 'nerie12345!';
+// Admin authentication - Multiple admin accounts
+const ADMIN_ACCOUNTS = {
+    'nerie013095!': { name: 'Main Admin', role: 'main_admin' },
+    'jackass01': { name: 'Leader Jackass', role: 'admin' },
+    'jackass02': { name: 'Vice Jackass', role: 'admin' },
+    'paragon01': { name: 'Leader Paragon', role: 'admin' },
+    'paragon02': { name: 'Vice Paragon', role: 'admin' }
+};
 let isAdmin = false;
+let isMainAdmin = false;
+let currentAdminName = '';
+let currentAdminRole = '';
+
+// Admin logs
+let adminLogs = [];
+
+// BOG Teams
+let bogTeams = [];
+
+// Announcements
+let announcements = [];
+
+// Event settings (PH Time - UTC+8)
+let eventSettings = {
+    castleSiege: { day: 0, time: '21:30' }, // Sunday 9:30 PM
+    demonRulerRaid: { days: [1, 4], time: '21:30' }, // Mon & Thu 9:30 PM
+    battleOfGods: { days: [2, 5], time: '21:30' }, // Tue & Fri 9:30 PM
+    conquestBattle: { days: [3, 6], time: '21:30' } // Wed & Sat 9:30 PM
+};
+
+// Guild member classes
+const MEMBER_CLASSES = [
+    'ENE DK',
+    'STR DK',
+    'ENE DL',
+    'STR DL',
+    'AGI ELF',
+    'ENE ELF',
+    'AGI WIZ',
+    'ENE WIZ'
+];
 
 // Database and real-time sync
 let isOnline = false;
@@ -366,6 +404,9 @@ function handleLoot(lootName, playerName) {
         action: 'looted'
     };
     rotationHistory.unshift(historyEntry);
+    
+    // Log admin action
+    logAdminAction('loot', `${playerName} looted ${lootName}`);
     rotationsToday++;
     
     const rotation = lootRotations[lootName];
@@ -518,6 +559,9 @@ function handleSkip(lootName, playerName) {
     };
     rotationHistory.unshift(historyEntry);
     
+    // Log admin action
+    logAdminAction('skip', `${playerName} skipped ${lootName}`);
+    
     // Advance to next player (store current position for later)
     const rotation = lootRotations[lootName];
     if (rotation && rotation.length > 0) {
@@ -646,6 +690,9 @@ function executeSwap(lootName, currentPlayer, targetPlayer) {
         action: `swapped positions (${currentPlayer} → position ${targetIndex + 1}, ${targetPlayer} → position ${currentIndex + 1})`
     };
     rotationHistory.unshift(historyEntry);
+    
+    // Log admin action
+    logAdminAction('swap', `${currentPlayer} swapped with ${targetPlayer} for ${lootName}`);
     
     hideSwapModal();
     
@@ -1112,13 +1159,18 @@ function renderMembers() {
                     </div>
                     <div class="flex-1 min-w-0">
                         <h3 class="font-bold text-white text-sm sm:text-base truncate">${member.name}</h3>
-                        <p class="text-xs sm:text-sm text-gray-500 capitalize">${member.class}</p>
+                        <p class="text-xs sm:text-sm text-gray-500">${member.class || 'No class'}</p>
                     </div>
                 </div>
                 ${isAdmin ? `
-                    <button onclick="removeMember(${member.id})" class="text-red-500 hover:text-red-400 transition p-2 min-h-[44px]">
-                        <i class="fas fa-trash"></i>
-                    </button>
+                    <div class="flex space-x-2">
+                        <button onclick="showEditMemberClassModal(${member.id})" class="text-blue-500 hover:text-blue-400 transition p-2 min-h-[44px]" title="Edit class">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="removeMember(${member.id})" class="text-red-500 hover:text-red-400 transition p-2 min-h-[44px]" title="Remove member">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
                 ` : ''}
             </div>
             <div class="text-xs text-gray-600">
@@ -1513,6 +1565,10 @@ function applyDataUpdate(data, fromServer = false) {
     if (data.currentPlayerRotation) currentPlayerRotation = data.currentPlayerRotation;
     if (data.rotationQueue) rotationQueue = data.rotationQueue;
     if (data.lootPlayers) lootPlayers = data.lootPlayers;
+    if (data.adminLogs) adminLogs = data.adminLogs;
+    if (data.bogTeams) bogTeams = data.bogTeams;
+    if (data.announcements) announcements = data.announcements;
+    if (data.eventSettings) eventSettings = data.eventSettings;
     
     // Convert playerLootStatus arrays back to Sets
     if (data.playerLootStatus) {
@@ -1528,6 +1584,11 @@ function applyDataUpdate(data, fromServer = false) {
     renderLoot();
     renderHistory();
     updateStats();
+    
+    // Check for announcements on load
+    if (!fromServer) {
+        checkAndShowAnnouncement();
+    }
 }
 
 async function saveData() {
@@ -1553,7 +1614,12 @@ async function saveData() {
         currentPlayerRotation,
         playerLootStatus: playerLootStatusObj,
         // Queue system
-        rotationQueue
+        rotationQueue,
+        // Admin system
+        adminLogs,
+        bogTeams,
+        announcements,
+        eventSettings
     };
     
     // Always save to localStorage as backup
@@ -2306,3 +2372,533 @@ document.addEventListener('keydown', function(e) {
         attemptLogin();
     }
 });
+
+// ==================== ADMIN LOGS SYSTEM ====================
+function logAdminAction(actionType, description) {
+    if (!isAdmin) return;
+    
+    const logEntry = {
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        adminName: currentAdminName,
+        adminRole: currentAdminRole,
+        actionType: actionType,
+        description: description
+    };
+    
+    adminLogs.unshift(logEntry);
+    
+    // Keep only last 500 logs
+    if (adminLogs.length > 500) {
+        adminLogs = adminLogs.slice(0, 500);
+    }
+    
+    saveData();
+}
+
+function renderAdminLogs() {
+    const container = document.getElementById('admin-logs-list');
+    if (!container) return;
+    
+    if (adminLogs.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-8 text-gray-500">
+                <i class="fas fa-clipboard-list text-4xl mb-4 opacity-30"></i>
+                <p>No admin logs yet</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = adminLogs.slice(0, 100).map(log => {
+        const date = new Date(log.timestamp);
+        const timeAgo = getTimeAgo(date);
+        const actionColor = log.actionType === 'loot' ? 'green' : 
+                           log.actionType === 'skip' ? 'yellow' : 
+                           log.actionType === 'swap' ? 'blue' : 
+                           log.actionType === 'member' ? 'purple' : 'gray';
+        
+        return `
+            <div class="bg-neutral-800 rounded-lg p-3 border border-neutral-700 mb-2">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="font-bold text-${actionColor}-400 text-sm">${log.adminName}</span>
+                    <span class="text-xs text-gray-500">${timeAgo}</span>
+                </div>
+                <p class="text-sm text-white">${log.description}</p>
+                <p class="text-xs text-gray-600 mt-1">${date.toLocaleString()}</p>
+            </div>
+        `;
+    }).join('');
+}
+
+// ==================== BOG TEAMS SYSTEM ====================
+function renderBogTeams() {
+    const container = document.getElementById('bog-teams-list');
+    if (!container) return;
+    
+    if (bogTeams.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-8 text-gray-500">
+                <i class="fas fa-users text-4xl mb-4 opacity-30"></i>
+                <p>No BOG teams created yet</p>
+                ${isMainAdmin ? '<p class="text-sm mt-2">Click "Add Team" to create a new team</p>' : ''}
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = bogTeams.map((team, index) => `
+        <div class="bg-neutral-800 rounded-lg p-4 border border-neutral-700 mb-3">
+            <div class="flex items-center justify-between mb-3">
+                <h4 class="font-bold text-white">Team ${index + 1}: ${team.name || 'Unnamed'}</h4>
+                ${isMainAdmin ? `
+                    <div class="flex space-x-2">
+                        <button onclick="editBogTeam(${index})" class="text-blue-400 hover:text-blue-300 text-sm">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="deleteBogTeam(${index})" class="text-red-400 hover:text-red-300 text-sm">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                ` : ''}
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+                ${team.members.map(member => `
+                    <div class="bg-neutral-700 rounded p-2 text-center">
+                        <p class="text-sm text-white font-medium">${member}</p>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `).join('');
+}
+
+function showAddBogTeamModal() {
+    const memberOptions = guildMembers.map(m => 
+        `<option value="${m.name}">${m.name}</option>`
+    ).join('');
+    
+    document.getElementById('bog-team-modal-content').innerHTML = `
+        <h3 class="text-lg font-bold mb-4 text-white"><i class="fas fa-users mr-2"></i>Create BOG Team</h3>
+        <input type="text" id="bog-team-name" placeholder="Team name (optional)" class="w-full px-4 py-2 bg-neutral-800 rounded-lg mb-4 text-white placeholder-gray-500 border border-neutral-700">
+        <div class="space-y-3 mb-4">
+            <div>
+                <label class="text-sm text-gray-400">Member 1:</label>
+                <select id="bog-member-1" class="w-full px-4 py-2 bg-neutral-800 rounded-lg text-white border border-neutral-700">
+                    <option value="">Select member</option>
+                    ${memberOptions}
+                </select>
+            </div>
+            <div>
+                <label class="text-sm text-gray-400">Member 2:</label>
+                <select id="bog-member-2" class="w-full px-4 py-2 bg-neutral-800 rounded-lg text-white border border-neutral-700">
+                    <option value="">Select member</option>
+                    ${memberOptions}
+                </select>
+            </div>
+            <div>
+                <label class="text-sm text-gray-400">Member 3:</label>
+                <select id="bog-member-3" class="w-full px-4 py-2 bg-neutral-800 rounded-lg text-white border border-neutral-700">
+                    <option value="">Select member</option>
+                    ${memberOptions}
+                </select>
+            </div>
+        </div>
+        <div class="flex justify-end space-x-3">
+            <button onclick="hideBogTeamModal()" class="px-4 py-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition border border-neutral-700">Cancel</button>
+            <button onclick="saveBogTeam()" class="px-4 py-2 bg-red-700 text-white rounded-lg hover:bg-red-800 transition">Save Team</button>
+        </div>
+    `;
+    document.getElementById('bog-team-modal').classList.remove('hidden');
+}
+
+function hideBogTeamModal() {
+    document.getElementById('bog-team-modal').classList.add('hidden');
+}
+
+function saveBogTeam(editIndex = null) {
+    const name = document.getElementById('bog-team-name').value.trim();
+    const member1 = document.getElementById('bog-member-1').value;
+    const member2 = document.getElementById('bog-member-2').value;
+    const member3 = document.getElementById('bog-member-3').value;
+    
+    if (!member1 || !member2 || !member3) {
+        showNotification('Please select all 3 team members!', 'error');
+        return;
+    }
+    
+    if (member1 === member2 || member2 === member3 || member1 === member3) {
+        showNotification('Team members must be different!', 'error');
+        return;
+    }
+    
+    const team = {
+        name: name || `Team ${bogTeams.length + 1}`,
+        members: [member1, member2, member3],
+        createdAt: new Date().toISOString()
+    };
+    
+    if (editIndex !== null) {
+        bogTeams[editIndex] = team;
+        logAdminAction('bog_team', `Updated BOG team: ${team.name}`);
+    } else {
+        bogTeams.push(team);
+        logAdminAction('bog_team', `Created BOG team: ${team.name} (${member1}, ${member2}, ${member3})`);
+    }
+    
+    saveData();
+    renderBogTeams();
+    hideBogTeamModal();
+    showNotification('BOG team saved!', 'success');
+}
+
+function editBogTeam(index) {
+    const team = bogTeams[index];
+    showAddBogTeamModal();
+    
+    setTimeout(() => {
+        document.getElementById('bog-team-name').value = team.name;
+        document.getElementById('bog-member-1').value = team.members[0];
+        document.getElementById('bog-member-2').value = team.members[1];
+        document.getElementById('bog-member-3').value = team.members[2];
+        
+        // Update save button to edit mode
+        const saveBtn = document.querySelector('#bog-team-modal button[onclick="saveBogTeam()"]');
+        if (saveBtn) {
+            saveBtn.setAttribute('onclick', `saveBogTeam(${index})`);
+            saveBtn.textContent = 'Update Team';
+        }
+    }, 100);
+}
+
+function deleteBogTeam(index) {
+    if (confirm('Are you sure you want to delete this team?')) {
+        const team = bogTeams[index];
+        logAdminAction('bog_team', `Deleted BOG team: ${team.name}`);
+        bogTeams.splice(index, 1);
+        saveData();
+        renderBogTeams();
+        showNotification('BOG team deleted!', 'info');
+    }
+}
+
+// ==================== ANNOUNCEMENTS SYSTEM ====================
+function checkAndShowAnnouncement() {
+    if (announcements.length === 0) return;
+    
+    const latestAnnouncement = announcements[0];
+    const lastSeenId = localStorage.getItem('lastSeenAnnouncementId');
+    
+    if (latestAnnouncement.id.toString() !== lastSeenId) {
+        showAnnouncementPopup(latestAnnouncement);
+    }
+}
+
+function showAnnouncementPopup(announcement) {
+    const popup = document.getElementById('announcement-popup');
+    if (!popup) return;
+    
+    document.getElementById('announcement-title').textContent = announcement.title;
+    document.getElementById('announcement-content').textContent = announcement.content;
+    popup.classList.remove('hidden');
+}
+
+function hideAnnouncementPopup() {
+    const popup = document.getElementById('announcement-popup');
+    if (popup) {
+        popup.classList.add('hidden');
+        if (announcements.length > 0) {
+            localStorage.setItem('lastSeenAnnouncementId', announcements[0].id.toString());
+        }
+    }
+}
+
+function showCreateAnnouncementModal() {
+    document.getElementById('announcement-modal').classList.remove('hidden');
+}
+
+function hideAnnouncementModal() {
+    document.getElementById('announcement-modal').classList.add('hidden');
+    document.getElementById('new-announcement-title').value = '';
+    document.getElementById('new-announcement-content').value = '';
+}
+
+function saveAnnouncement() {
+    const title = document.getElementById('new-announcement-title').value.trim();
+    const content = document.getElementById('new-announcement-content').value.trim();
+    
+    if (!title || !content) {
+        showNotification('Please fill in both title and content!', 'error');
+        return;
+    }
+    
+    const announcement = {
+        id: Date.now(),
+        title: title,
+        content: content,
+        createdAt: new Date().toISOString(),
+        createdBy: currentAdminName
+    };
+    
+    announcements.unshift(announcement);
+    logAdminAction('announcement', `Created announcement: ${title}`);
+    
+    saveData();
+    hideAnnouncementModal();
+    showNotification('Announcement created!', 'success');
+}
+
+// ==================== EVENT TIMERS WITH PH TIME ====================
+function getPHTime() {
+    // Get current time in PH timezone (UTC+8)
+    const now = new Date();
+    const phOffset = 8 * 60; // PH is UTC+8
+    const localOffset = now.getTimezoneOffset();
+    const phTime = new Date(now.getTime() + (phOffset + localOffset) * 60000);
+    return phTime;
+}
+
+function updateEventTimers() {
+    const phNow = getPHTime();
+    const currentDay = phNow.getDay();
+    const currentHour = phNow.getHours();
+    const currentMinute = phNow.getMinutes();
+    
+    // Update Castle Siege countdown (Sunday 9:30 PM)
+    updateSingleEventCountdown('castle-siege-countdown', eventSettings.castleSiege.day, eventSettings.castleSiege.time, phNow);
+    
+    // Update Demon Ruler Raid countdown (Mon & Thu 9:30 PM)
+    updateMultiDayEventCountdown('demon-ruler-countdown', eventSettings.demonRulerRaid.days, eventSettings.demonRulerRaid.time, phNow);
+    
+    // Update Battle of Gods countdown (Tue & Fri 9:30 PM)
+    updateMultiDayEventCountdown('battle-of-gods-countdown', eventSettings.battleOfGods.days, eventSettings.battleOfGods.time, phNow);
+    
+    // Update Conquest Battle countdown (Wed & Sat 9:30 PM)
+    updateMultiDayEventCountdown('conquest-battle-countdown', eventSettings.conquestBattle.days, eventSettings.conquestBattle.time, phNow);
+}
+
+function updateSingleEventCountdown(elementId, targetDay, targetTime, phNow) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    
+    const [targetHour, targetMinute] = targetTime.split(':').map(Number);
+    const countdown = getCountdownToEvent(phNow, targetDay, targetHour, targetMinute);
+    element.textContent = countdown;
+}
+
+function updateMultiDayEventCountdown(elementId, targetDays, targetTime, phNow) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    
+    const [targetHour, targetMinute] = targetTime.split(':').map(Number);
+    const currentDay = phNow.getDay();
+    
+    // Find the next occurrence
+    let minCountdown = null;
+    let minDaysUntil = 8;
+    
+    targetDays.forEach(day => {
+        let daysUntil = day - currentDay;
+        if (daysUntil < 0) daysUntil += 7;
+        if (daysUntil === 0) {
+            // Check if event already passed today
+            const currentHour = phNow.getHours();
+            const currentMinute = phNow.getMinutes();
+            if (currentHour > targetHour || (currentHour === targetHour && currentMinute >= targetMinute)) {
+                daysUntil = 7;
+            }
+        }
+        if (daysUntil < minDaysUntil) {
+            minDaysUntil = daysUntil;
+        }
+    });
+    
+    const nextDay = (currentDay + minDaysUntil) % 7;
+    const countdown = getCountdownToEvent(phNow, nextDay, targetHour, targetMinute);
+    element.textContent = countdown;
+}
+
+function getCountdownToEvent(phNow, targetDay, targetHour, targetMinute) {
+    const currentDay = phNow.getDay();
+    let daysUntil = targetDay - currentDay;
+    if (daysUntil < 0) daysUntil += 7;
+    
+    const currentHour = phNow.getHours();
+    const currentMinute = phNow.getMinutes();
+    
+    if (daysUntil === 0) {
+        if (currentHour > targetHour || (currentHour === targetHour && currentMinute >= targetMinute)) {
+            daysUntil = 7;
+        }
+    }
+    
+    // Calculate total minutes until event
+    let totalMinutes = daysUntil * 24 * 60;
+    totalMinutes += (targetHour - currentHour) * 60;
+    totalMinutes += (targetMinute - currentMinute);
+    
+    if (totalMinutes < 0) totalMinutes += 7 * 24 * 60;
+    
+    const days = Math.floor(totalMinutes / (24 * 60));
+    const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+    const minutes = totalMinutes % 60;
+    
+    if (days > 0) {
+        return `${days}d ${hours}h ${minutes}m`;
+    } else if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+    } else {
+        return `${minutes}m`;
+    }
+}
+
+function showEventSettingsModal() {
+    if (!isMainAdmin) {
+        showNotification('Only Main Admin can change event settings!', 'error');
+        return;
+    }
+    
+    document.getElementById('event-settings-modal').classList.remove('hidden');
+    
+    // Populate current values
+    document.getElementById('castle-siege-time').value = eventSettings.castleSiege.time;
+    document.getElementById('demon-ruler-time').value = eventSettings.demonRulerRaid.time;
+    document.getElementById('battle-of-gods-time').value = eventSettings.battleOfGods.time;
+    document.getElementById('conquest-battle-time').value = eventSettings.conquestBattle.time;
+}
+
+function hideEventSettingsModal() {
+    document.getElementById('event-settings-modal').classList.add('hidden');
+}
+
+function saveEventSettings() {
+    eventSettings.castleSiege.time = document.getElementById('castle-siege-time').value;
+    eventSettings.demonRulerRaid.time = document.getElementById('demon-ruler-time').value;
+    eventSettings.battleOfGods.time = document.getElementById('battle-of-gods-time').value;
+    eventSettings.conquestBattle.time = document.getElementById('conquest-battle-time').value;
+    
+    logAdminAction('settings', 'Updated event times');
+    saveData();
+    updateEventTimers();
+    hideEventSettingsModal();
+    showNotification('Event settings saved!', 'success');
+}
+
+// ==================== MEMBER CLASS MANAGEMENT ====================
+function showEditMemberClassModal(memberId) {
+    const member = guildMembers.find(m => m.id === memberId);
+    if (!member) return;
+    
+    const classOptions = MEMBER_CLASSES.map(c => 
+        `<option value="${c}" ${member.class === c ? 'selected' : ''}>${c}</option>`
+    ).join('');
+    
+    document.getElementById('edit-member-modal-content').innerHTML = `
+        <h3 class="text-lg font-bold mb-4 text-white"><i class="fas fa-user-edit mr-2"></i>Edit Member Class</h3>
+        <p class="text-gray-400 mb-2">Member: <span class="text-white font-bold">${member.name}</span></p>
+        <select id="edit-member-class" class="w-full px-4 py-2 bg-neutral-800 rounded-lg mb-4 text-white border border-neutral-700">
+            ${classOptions}
+        </select>
+        <div class="flex justify-end space-x-3">
+            <button onclick="hideEditMemberModal()" class="px-4 py-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition border border-neutral-700">Cancel</button>
+            <button onclick="saveMemberClass(${memberId})" class="px-4 py-2 bg-red-700 text-white rounded-lg hover:bg-red-800 transition">Save</button>
+        </div>
+    `;
+    document.getElementById('edit-member-modal').classList.remove('hidden');
+}
+
+function hideEditMemberModal() {
+    document.getElementById('edit-member-modal').classList.add('hidden');
+}
+
+function saveMemberClass(memberId) {
+    const member = guildMembers.find(m => m.id === memberId);
+    if (!member) return;
+    
+    const newClass = document.getElementById('edit-member-class').value;
+    const oldClass = member.class;
+    member.class = newClass;
+    
+    logAdminAction('member', `Changed ${member.name}'s class from ${oldClass} to ${newClass}`);
+    saveData();
+    renderMembers();
+    hideEditMemberModal();
+    showNotification(`${member.name}'s class updated to ${newClass}!`, 'success');
+}
+
+// ==================== UPDATED ADMIN LOGIN ====================
+function toggleAdminLogin() {
+    if (isAdmin) {
+        // Logout
+        isAdmin = false;
+        isMainAdmin = false;
+        currentAdminName = '';
+        currentAdminRole = '';
+        updateAdminUI();
+        showNotification('Logged out successfully', 'info');
+    } else {
+        // Show login modal
+        document.getElementById('admin-login-modal').classList.remove('hidden');
+    }
+}
+
+function attemptLogin() {
+    const password = document.getElementById('admin-password').value;
+    
+    if (ADMIN_ACCOUNTS[password]) {
+        const account = ADMIN_ACCOUNTS[password];
+        isAdmin = true;
+        isMainAdmin = account.role === 'main_admin';
+        currentAdminName = account.name;
+        currentAdminRole = account.role;
+        
+        hideAdminLoginModal();
+        updateAdminUI();
+        logAdminAction('login', `${account.name} logged in`);
+        showNotification(`Welcome, ${account.name}!`, 'success');
+    } else {
+        document.getElementById('login-error').classList.remove('hidden');
+        setTimeout(() => {
+            document.getElementById('login-error').classList.add('hidden');
+        }, 3000);
+    }
+}
+
+function hideAdminLoginModal() {
+    document.getElementById('admin-login-modal').classList.add('hidden');
+    document.getElementById('admin-password').value = '';
+    document.getElementById('login-error').classList.add('hidden');
+}
+
+function updateAdminUI() {
+    const adminElements = document.querySelectorAll('.admin-only');
+    const mainAdminElements = document.querySelectorAll('.main-admin-only');
+    
+    adminElements.forEach(el => {
+        if (isAdmin) {
+            el.classList.remove('hidden');
+        } else {
+            el.classList.add('hidden');
+        }
+    });
+    
+    mainAdminElements.forEach(el => {
+        if (isMainAdmin) {
+            el.classList.remove('hidden');
+        } else {
+            el.classList.add('hidden');
+        }
+    });
+    
+    // Update admin button text
+    const adminBtnText = document.getElementById('admin-btn-text');
+    if (adminBtnText) {
+        adminBtnText.textContent = isAdmin ? `Logout (${currentAdminName})` : 'Admin';
+    }
+    
+    // Render admin-specific content
+    if (isAdmin) {
+        renderAdminLogs();
+        renderBogTeams();
+    }
+}

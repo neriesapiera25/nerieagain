@@ -110,28 +110,28 @@
                         <div class="text-center flex-1 sm:flex-none">
                             <p class="text-xs text-gray-500">Castle Siege</p>
                             <p class="text-sm font-bold text-white">Sunday</p>
-                            <p class="text-xs text-gray-400">5:30 PM</p>
+                            <p class="text-xs text-gray-400">9:30 PM PH</p>
                             <p class="text-xs text-blue-400" id="castle-siege-countdown"></p>
                         </div>
                         <!-- Demon Ruler Raid -->
                         <div class="text-center flex-1 sm:flex-none">
                             <p class="text-xs text-gray-500">Demon Ruler Raid</p>
                             <p class="text-sm font-bold text-white">Mon & Thu</p>
-                            <p class="text-xs text-gray-400">5:30 PM</p>
+                            <p class="text-xs text-gray-400">9:30 PM PH</p>
                             <p class="text-xs text-purple-400" id="demon-ruler-countdown"></p>
                         </div>
                         <!-- Battle of Gods -->
                         <div class="text-center flex-1 sm:flex-none">
                             <p class="text-xs text-gray-500">Battle of Gods</p>
                             <p class="text-sm font-bold text-white">Tue & Fri</p>
-                            <p class="text-xs text-gray-400">5:30 PM</p>
+                            <p class="text-xs text-gray-400">9:30 PM PH</p>
                             <p class="text-xs text-orange-400" id="battle-of-gods-countdown"></p>
                         </div>
                         <!-- Conquest Battle -->
                         <div class="text-center flex-1 sm:flex-none">
                             <p class="text-xs text-gray-500">Conquest Battle</p>
                             <p class="text-sm font-bold text-white">Wed & Sat</p>
-                            <p class="text-xs text-gray-400">5:30 PM</p>
+                            <p class="text-xs text-gray-400">9:30 PM PH</p>
                             <p class="text-xs text-green-400" id="conquest-battle-countdown"></p>
                         </div>
                     </div>
@@ -165,6 +165,12 @@
                     </button>
                     <button onclick="showTab('history')" class="tab-btn px-3 py-2 sm:px-4 rounded-lg bg-neutral-800 text-white hover:bg-neutral-700 transition text-sm sm:text-base">
                         <i class="fas fa-history mr-1 sm:mr-2"></i>History
+                    </button>
+                    <button onclick="showTab('bog-teams')" class="tab-btn px-3 py-2 sm:px-4 rounded-lg bg-neutral-800 text-white hover:bg-neutral-700 transition text-sm sm:text-base">
+                        <i class="fas fa-users-cog mr-1 sm:mr-2"></i>BOG Teams
+                    </button>
+                    <button onclick="showTab('admin-logs')" class="tab-btn px-3 py-2 sm:px-4 rounded-lg bg-neutral-800 text-white hover:bg-neutral-700 transition admin-only hidden text-sm sm:text-base">
+                        <i class="fas fa-clipboard-list mr-1 sm:mr-2"></i>Admin Logs
                     </button>
                     <button onclick="toggleAdminLogin()" id="admin-btn" class="px-3 py-2 sm:px-4 rounded-lg bg-red-800 text-white hover:bg-red-900 transition text-sm sm:text-base">
                         <i class="fas fa-lock mr-1 sm:mr-2"></i><span id="admin-btn-text">Admin</span>
@@ -343,17 +349,51 @@
 
         <!-- History Tab -->
         <div id="history-tab" class="tab-content hidden">
-            <header class="bg-neutral-900 border-b border-red-900">
-                <div class="max-w-7xl mx-auto px-4 py-4">
-                    <h1 class="text-2xl sm:text-3xl font-bold text-red-600 text-center">Jackass Guild Loot Rotation</h1>
-                </div>
-            </header>
             <div class="bg-neutral-900 rounded-xl p-4 sm:p-6 border border-neutral-800">
                 <h2 class="text-lg sm:text-xl font-bold mb-6 text-white">
                     <i class="fas fa-history mr-2"></i>Loot History
                 </h2>
                 <div class="space-y-4" id="history-list">
                     <!-- History will be displayed here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- BOG Teams Tab -->
+        <div id="bog-teams-tab" class="tab-content hidden">
+            <div class="bg-neutral-900 rounded-xl p-4 sm:p-6 border border-neutral-800">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0">
+                    <h2 class="text-lg sm:text-xl font-bold text-white">
+                        <i class="fas fa-users-cog mr-2"></i>Battle of Gods Teams
+                    </h2>
+                    <button onclick="showAddBogTeamModal()" class="px-4 py-2 bg-red-700 text-white rounded-lg hover:bg-red-800 transition w-full sm:w-auto main-admin-only hidden">
+                        <i class="fas fa-plus mr-2"></i>Add Team
+                    </button>
+                </div>
+                <div id="bog-teams-list">
+                    <!-- BOG teams will be displayed here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Logs Tab -->
+        <div id="admin-logs-tab" class="tab-content hidden admin-only">
+            <div class="bg-neutral-900 rounded-xl p-4 sm:p-6 border border-neutral-800">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0">
+                    <h2 class="text-lg sm:text-xl font-bold text-white">
+                        <i class="fas fa-clipboard-list mr-2"></i>Admin Activity Logs
+                    </h2>
+                    <div class="flex space-x-2 main-admin-only hidden">
+                        <button onclick="showCreateAnnouncementModal()" class="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition">
+                            <i class="fas fa-bullhorn mr-2"></i>Create Announcement
+                        </button>
+                        <button onclick="showEventSettingsModal()" class="px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 transition">
+                            <i class="fas fa-cog mr-2"></i>Event Settings
+                        </button>
+                    </div>
+                </div>
+                <div id="admin-logs-list" class="max-h-96 overflow-y-auto">
+                    <!-- Admin logs will be displayed here -->
                 </div>
             </div>
         </div>
@@ -366,19 +406,14 @@
             <input type="text" id="member-name" placeholder="Member name" class="w-full px-4 py-2 bg-neutral-800 rounded-lg mb-4 text-white placeholder-gray-500 border border-neutral-700">
             <select id="member-class" class="w-full px-4 py-2 bg-neutral-800 rounded-lg mb-4 text-white border border-neutral-700">
                 <option value="">Select class</option>
-                <option value="warrior">Warrior</option>
-                <option value="mage">Mage</option>
-                <option value="rogue">Rogue</option>
-                <option value="priest">Priest</option>
-                <option value="hunter">Hunter</option>
-                <option value="druid">Druid</option>
-                <option value="paladin">Paladin</option>
-                <option value="warlock">Warlock</option>
-                <option value="shaman">Shaman</option>
-                <option value="monk">Monk</option>
-                <option value="demon-hunter">Demon Hunter</option>
-                <option value="death-knight">Death Knight</option>
-                <option value="evoker">Evoker</option>
+                <option value="ENE DK">ENE DK</option>
+                <option value="STR DK">STR DK</option>
+                <option value="ENE DL">ENE DL</option>
+                <option value="STR DL">STR DL</option>
+                <option value="AGI ELF">AGI ELF</option>
+                <option value="ENE ELF">ENE ELF</option>
+                <option value="AGI WIZ">AGI WIZ</option>
+                <option value="ENE WIZ">ENE WIZ</option>
             </select>
             <div class="flex justify-end space-x-3">
                 <button onclick="hideAddMemberModal()" class="px-4 py-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition border border-neutral-700">Cancel</button>
@@ -467,6 +502,80 @@
             </div>
             <div class="flex justify-end space-x-3">
                 <button onclick="hideSwapModal()" class="px-4 py-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition border border-neutral-700">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOG Team Modal -->
+    <div id="bog-team-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-neutral-900 rounded-xl p-4 sm:p-6 w-full max-w-md border border-neutral-800" id="bog-team-modal-content">
+            <!-- Content will be dynamically generated -->
+        </div>
+    </div>
+
+    <!-- Edit Member Modal -->
+    <div id="edit-member-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-neutral-900 rounded-xl p-4 sm:p-6 w-full max-w-md border border-neutral-800" id="edit-member-modal-content">
+            <!-- Content will be dynamically generated -->
+        </div>
+    </div>
+
+    <!-- Announcement Popup -->
+    <div id="announcement-popup" class="fixed inset-0 bg-black bg-opacity-80 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-neutral-900 rounded-xl p-6 w-full max-w-lg border border-red-700">
+            <div class="text-center mb-4">
+                <i class="fas fa-bullhorn text-4xl text-red-500 mb-3"></i>
+                <h2 class="text-xl font-bold text-white" id="announcement-title">Announcement</h2>
+            </div>
+            <div class="bg-neutral-800 rounded-lg p-4 mb-4 border border-neutral-700">
+                <p class="text-gray-300" id="announcement-content">Content here</p>
+            </div>
+            <div class="text-center">
+                <button onclick="hideAnnouncementPopup()" class="px-6 py-2 bg-red-700 text-white rounded-lg hover:bg-red-800 transition">
+                    Got it!
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Announcement Modal -->
+    <div id="announcement-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-neutral-900 rounded-xl p-4 sm:p-6 w-full max-w-md border border-neutral-800">
+            <h3 class="text-lg font-bold mb-4 text-white"><i class="fas fa-bullhorn mr-2"></i>Create Announcement</h3>
+            <input type="text" id="new-announcement-title" placeholder="Announcement title" class="w-full px-4 py-2 bg-neutral-800 rounded-lg mb-4 text-white placeholder-gray-500 border border-neutral-700">
+            <textarea id="new-announcement-content" placeholder="Announcement content" rows="4" class="w-full px-4 py-2 bg-neutral-800 rounded-lg mb-4 text-white placeholder-gray-500 border border-neutral-700 resize-none"></textarea>
+            <div class="flex justify-end space-x-3">
+                <button onclick="hideAnnouncementModal()" class="px-4 py-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition border border-neutral-700">Cancel</button>
+                <button onclick="saveAnnouncement()" class="px-4 py-2 bg-red-700 text-white rounded-lg hover:bg-red-800 transition">Publish</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Event Settings Modal -->
+    <div id="event-settings-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-neutral-900 rounded-xl p-4 sm:p-6 w-full max-w-md border border-neutral-800">
+            <h3 class="text-lg font-bold mb-4 text-white"><i class="fas fa-cog mr-2"></i>Event Time Settings (PH Time)</h3>
+            <div class="space-y-4 mb-4">
+                <div>
+                    <label class="text-sm text-gray-400">Castle Siege (Sunday):</label>
+                    <input type="time" id="castle-siege-time" class="w-full px-4 py-2 bg-neutral-800 rounded-lg text-white border border-neutral-700">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">Demon Ruler Raid (Mon & Thu):</label>
+                    <input type="time" id="demon-ruler-time" class="w-full px-4 py-2 bg-neutral-800 rounded-lg text-white border border-neutral-700">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">Battle of Gods (Tue & Fri):</label>
+                    <input type="time" id="battle-of-gods-time" class="w-full px-4 py-2 bg-neutral-800 rounded-lg text-white border border-neutral-700">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">Conquest Battle (Wed & Sat):</label>
+                    <input type="time" id="conquest-battle-time" class="w-full px-4 py-2 bg-neutral-800 rounded-lg text-white border border-neutral-700">
+                </div>
+            </div>
+            <div class="flex justify-end space-x-3">
+                <button onclick="hideEventSettingsModal()" class="px-4 py-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition border border-neutral-700">Cancel</button>
+                <button onclick="saveEventSettings()" class="px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 transition">Save</button>
             </div>
         </div>
     </div>
