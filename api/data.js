@@ -9,7 +9,7 @@ async function connectToDatabase() {
     return { client: cachedClient, db: cachedDb };
   }
 
-  const client = new MongoClient(process.env.MONGODB_URI);
+  const client = new MongoClient('mongodb+srv://neriesap:nerie12345@jackassguildrotation.n2lvdne.mongodb.net/?appName=JackassGuildRotation');
   await client.connect();
   const db = client.db('guildLootRotation');
   

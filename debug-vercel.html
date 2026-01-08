@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Vercel API Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        .pending { background: #fff3cd; border-color: #ffeaa7; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Vercel API Debug Tool</h1>
+        
+        <div class="test-section">
+            <h3>1. API Endpoint Test</h3>
+            <button onclick="testAPI()">Test /api/data endpoint</button>
+            <div id="api-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>2. MongoDB Connection Test</h3>
+            <button onclick="testMongoDB()">Test database connection</button>
+            <div id="mongo-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>3. Data Write Test</h3>
+            <button onclick="testWrite()">Test data write operation</button>
+            <div id="write-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>4. Real-time Sync Test</h3>
+            <button onclick="startSyncTest()">Start sync test (30 seconds)</button>
+            <div id="sync-result"></div>
+        </div>
+    </div>
+
+    <script>
+        let syncInterval;
+        let updateCount = 0;
+        
+        async function testAPI() {
+            const resultDiv = document.getElementById('api-result');
+            resultDiv.innerHTML = '<div class="pending">Testing API endpoint...</div>';
+            
+            try {
+                const response = await fetch('/api/data');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <strong>✅ API Working!</strong><br>
+                            Status: ${response.status}<br>
+                            Last Updated: ${data.lastUpdated || 'Never'}<br>
+                            <pre>${JSON.stringify(data, null, 2).substring(0, 500)}...</pre>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <strong>❌ API Error</strong><br>
+                            Status: ${response.status}<br>
+                            Error: ${data.error || 'Unknown error'}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <strong>❌ Connection Failed</strong><br>
+                        Error: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        async function testMongoDB() {
+            const resultDiv = document.getElementById('mongo-result');
+            resultDiv.innerHTML = '<div class="pending">Testing MongoDB connection...</div>';
+            
+            try {
+                const response = await fetch('/api/data');
+                const data = await response.json();
+                
+                if (response.ok && data.lastUpdated) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <strong>✅ MongoDB Connected!</strong><br>
+                            Database is responding<br>
+                            Last Update: ${new Date(data.lastUpdated).toLocaleString()}<br>
+                            Guild Members: ${data.guildMembers?.length || 0}<br>
+                            Loot Items: ${data.lootItems?.length || 0}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <strong>❌ MongoDB Issue</strong><br>
+                            Database connection may be broken<br>
+                            Response: ${JSON.stringify(data)}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <strong>❌ MongoDB Connection Failed</strong><br>
+                        Error: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        async function testWrite() {
+            const resultDiv = document.getElementById('write-result');
+            resultDiv.innerHTML = '<div class="pending">Testing write operation...</div>';
+            
+            try {
+                // Get current data
+                const getResponse = await fetch('/api/data');
+                const currentData = await getResponse.json();
+                
+                if (!getResponse.ok) {
+                    throw new Error('Failed to fetch current data');
+                }
+                
+                // Add test record
+                const testData = {
+                    ...currentData,
+                    testWrite: {
+                        timestamp: new Date().toISOString(),
+                        testId: Math.random().toString(36).substr(2, 9)
+                    }
+                };
+                
+                // Write back
+                const writeResponse = await fetch('/api/data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testData)
+                });
+                
+                const writeResult = await writeResponse.json();
+                
+                if (writeResponse.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <strong>✅ Write Operation Successful!</strong><br>
+                            Test ID: ${testData.testWrite.testId}<br>
+                            Server Response: ${writeResult.message}<br>
+                            Last Updated: ${writeResult.lastUpdated}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <strong>❌ Write Failed</strong><br>
+                            Error: ${writeResult.error}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <strong>❌ Write Test Failed</strong><br>
+                        Error: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        async function startSyncTest() {
+            const resultDiv = document.getElementById('sync-result');
+            updateCount = 0;
+            resultDiv.innerHTML = '<div class="pending">Starting real-time sync test...</div>';
+            
+            let lastUpdate = null;
+            
+            syncInterval = setInterval(async () => {
+                try {
+                    const response = await fetch('/api/data');
+                    const data = await response.json();
+                    
+                    if (response.ok && data.lastUpdated !== lastUpdate) {
+                        lastUpdate = data.lastUpdated;
+                        updateCount++;
+                        
+                        resultDiv.innerHTML = `
+                            <div class="success">
+                                <strong>🔄 Real-time Sync Active!</strong><br>
+                                Updates detected: ${updateCount}<br>
+                                Last update: ${new Date(data.lastUpdated).toLocaleString()}<br>
+                                <small>Test running... (30 seconds total)</small>
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <strong>❌ Sync Failed</strong><br>
+                            Error: ${error.message}
+                        </div>
+                    `;
+                    clearInterval(syncInterval);
+                }
+            }, 2000);
+            
+            // Stop after 30 seconds
+            setTimeout(() => {
+                clearInterval(syncInterval);
+                if (updateCount > 0) {
+                    resultDiv.innerHTML += '<br><strong>✅ Test completed - Sync is working!</strong>';
+                } else {
+                    resultDiv.innerHTML = '<div class="error"><strong>❌ No updates detected - Check your setup</strong></div>';
+                }
+            }, 30000);
+        }
+        
+        // Auto-run API test on page load
+        window.onload = () => testAPI();
+    </script>
+</body>
+</html>
