@@ -65,6 +65,13 @@
     </style>
 </head>
 <body class="bg-neutral-950 text-gray-100 min-h-screen">
+    <!-- Connection Status Banner -->
+    <div id="connection-status" class="bg-green-900 border-b border-green-700 text-center py-1 px-4">
+        <span id="connection-text" class="text-xs text-green-200">
+            <i class="fas fa-wifi mr-1"></i>Connected - Real-time sync active
+        </span>
+    </div>
+
     <!-- Boss Timer Banner -->
     <div id="boss-timer-banner" class="bg-black border-b border-red-900">
         <div class="container mx-auto px-4 py-2 sm:py-3">
@@ -464,6 +471,7 @@
         </div>
     </div>
 
+    <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
     
     <!-- Footer with Trademark -->

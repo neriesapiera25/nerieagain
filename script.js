@@ -1,15 +1,10 @@
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
-    initializeData();
+    // Initialize database connection first
+    initializeDatabase();
     
-    // Ensure all UI components are rendered after data initialization
-    setTimeout(() => {
-        renderRotation();
-        renderMembers();
-        renderLoot();
-        renderHistory();
-        updateStats();
-    }, 100);
+    // Initialize data (will be called from database initialization)
+    // initializeData() is now called inside initializeDatabase()
     
     // Mobile optimizations
     if ('ontouchstart' in window) {
@@ -60,11 +55,12 @@ let rotationQueue = []; // Queue for new items to be added to rotation
 const ADMIN_PASSWORD = 'nerie12345!';
 let isAdmin = false;
 
+// Database and real-time sync
+let socket = null;
+let isOnline = false;
+
 // Initialize with sample data
 function initializeData() {
-    // Load saved data first
-    loadData();
-    
     // Initialize members if not exist or empty
     if (!guildMembers || guildMembers.length === 0) {
         // Guild members from the spreadsheet
@@ -1435,6 +1431,98 @@ function showNotification(message, type = 'info') {
 }
 
 // Data persistence
+// Initialize database connection and real-time sync
+function initializeDatabase() {
+    // Try to connect to the server first
+    try {
+        socket = io();
+        isOnline = true;
+        
+        socket.on('connect', () => {
+            console.log('Connected to server');
+            isOnline = true;
+            updateConnectionStatus(true);
+            showNotification('Connected to server - Real-time sync enabled', 'success');
+        });
+        
+        socket.on('disconnect', () => {
+            console.log('Disconnected from server');
+            isOnline = false;
+            updateConnectionStatus(false);
+            showNotification('Disconnected from server - Using local storage', 'warning');
+        });
+        
+        socket.on('dataUpdate', (data) => {
+            console.log('Received data update from server');
+            applyDataUpdate(data);
+        });
+        
+        socket.on('error', (error) => {
+            console.error('Socket error:', error);
+            isOnline = false;
+        });
+        
+        // Load initial data from server
+        loadDataFromServer();
+        
+    } catch (error) {
+        console.error('Failed to initialize database connection:', error);
+        isOnline = false;
+        updateConnectionStatus(false);
+        // Fallback to localStorage
+        loadData();
+    }
+}
+
+// Load data from server API
+async function loadDataFromServer() {
+    try {
+        const response = await fetch('/api/data');
+        if (response.ok) {
+            const data = await response.json();
+            applyDataUpdate(data);
+            console.log('Data loaded from server');
+        } else {
+            throw new Error('Failed to load data from server');
+        }
+    } catch (error) {
+        console.error('Error loading data from server:', error);
+        // Fallback to localStorage
+        loadData();
+    }
+}
+
+// Apply data update from server
+function applyDataUpdate(data) {
+    if (data.guildMembers) guildMembers = data.guildMembers;
+    if (data.lootItems) lootItems = data.lootItems;
+    if (data.lootRotations) lootRotations = data.lootRotations;
+    if (data.rotationHistory) rotationHistory = data.rotationHistory;
+    if (data.currentPositions) currentPositions = data.currentPositions;
+    if (data.rotationsToday) rotationsToday = data.rotationsToday;
+    if (data.playerSkipCounts) playerSkipCounts = data.playerSkipCounts;
+    if (data.skippedItems) skippedItems = data.skippedItems;
+    if (data.highlightedItems) highlightedItems = new Set(data.highlightedItems);
+    if (data.currentLootState) currentLootState = data.currentLootState;
+    if (data.currentPlayerRotation) currentPlayerRotation = data.currentPlayerRotation;
+    if (data.rotationQueue) rotationQueue = data.rotationQueue;
+    
+    // Convert playerLootStatus arrays back to Sets
+    if (data.playerLootStatus) {
+        playerLootStatus = {};
+        for (const [key, value] of Object.entries(data.playerLootStatus)) {
+            playerLootStatus[key] = new Set(value);
+        }
+    }
+    
+    // Update UI
+    renderRotation();
+    renderMembers();
+    renderLoot();
+    renderHistory();
+    updateStats();
+}
+
 function saveData() {
     // Convert Set objects in playerLootStatus to arrays for JSON storage
     const playerLootStatusObj = {};
@@ -1459,32 +1547,37 @@ function saveData() {
         // Queue system
         rotationQueue
     };
-    localStorage.setItem('guildLootRotation', JSON.stringify(data));
+    
+    if (isOnline && socket) {
+        // Save to server and broadcast to other clients
+        socket.emit('dataUpdate', data);
+    } else {
+        // Fallback to localStorage
+        localStorage.setItem('guildLootRotation', JSON.stringify(data));
+    }
 }
 
 function loadData() {
     const saved = localStorage.getItem('guildLootRotation');
     if (saved) {
         const data = JSON.parse(saved);
-        if (data.guildMembers) guildMembers = data.guildMembers;
-        if (data.lootItems) lootItems = data.lootItems;
-        if (data.lootRotations) lootRotations = data.lootRotations;
-        if (data.rotationHistory) rotationHistory = data.rotationHistory;
-        if (data.currentPositions) currentPositions = data.currentPositions;
-        if (data.rotationsToday) rotationsToday = data.rotationsToday;
-        if (data.playerSkipCounts) playerSkipCounts = data.playerSkipCounts;
-        if (data.skippedItems) skippedItems = data.skippedItems;
-        if (data.highlightedItems) highlightedItems = new Set(data.highlightedItems);
-        if (data.currentLootState) currentLootState = data.currentLootState;
-        if (data.currentPlayerRotation) currentPlayerRotation = data.currentPlayerRotation;
-        if (data.rotationQueue) rotationQueue = data.rotationQueue;
-        // Convert playerLootStatus arrays back to Sets
-        if (data.playerLootStatus) {
-            playerLootStatus = {};
-            for (const [key, value] of Object.entries(data.playerLootStatus)) {
-                playerLootStatus[key] = new Set(value);
-            }
-        }
+        applyDataUpdate(data);
+    }
+}
+
+// Update connection status UI
+function updateConnectionStatus(connected) {
+    const statusDiv = document.getElementById('connection-status');
+    const statusText = document.getElementById('connection-text');
+    
+    if (connected) {
+        statusDiv.className = 'bg-green-900 border-b border-green-700 text-center py-1 px-4';
+        statusText.className = 'text-xs text-green-200';
+        statusText.innerHTML = '<i class="fas fa-wifi mr-1"></i>Connected - Real-time sync active';
+    } else {
+        statusDiv.className = 'bg-yellow-900 border-b border-yellow-700 text-center py-1 px-4';
+        statusText.className = 'text-xs text-yellow-200';
+        statusText.innerHTML = '<i class="fas fa-exclamation-triangle mr-1"></i>Offline - Using local storage only';
     }
 }
 
