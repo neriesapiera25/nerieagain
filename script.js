@@ -508,7 +508,6 @@ function handleSkip(lootName, playerName) {
     
     // Increment skip count for this specific loot item
     playerSkipCounts[skipKey] = skipCount + 1;
-    currentLootState[lootName] = 'skipped';
     
     // Log to history
     const historyEntry = {
@@ -521,31 +520,26 @@ function handleSkip(lootName, playerName) {
     };
     rotationHistory.unshift(historyEntry);
     
-    // Advance to next player (store current position for later)
+    // Advance to next player
     const rotation = lootRotations[lootName];
     if (rotation && rotation.length > 0) {
-        // Store the current position before advancing
-        const currentPosition = currentPlayerRotation[lootName];
-        
         // Advance to next player
         currentPlayerRotation[lootName] = (currentPlayerRotation[lootName] + 1) % rotation.length;
-        currentLootState[lootName] = 'pending';
         
-        // Store the skipped player's position for when they return
-        if (!rotation.skippedPositions) {
-            rotation.skippedPositions = {};
-        }
-        rotation.skippedPositions[playerName] = currentPosition;
+        // IMPORTANT: Always set state to 'pending' for the next player
+        // This ensures the loot button will be available
+        currentLootState[lootName] = 'pending';
     }
     
     saveData();
     renderRotation();
     renderHistory();
+    updateStats();
     
     if (skipCount + 1 < 2) {
         showNotification(`${playerName} skipped ${lootName} (${skipCount + 1}/2 skips used)`, 'info');
     } else {
-        showNotification(`${playerName} has used all skips and cannot loot until rotation resets!`, 'warning');
+        showNotification(`${playerName} skipped ${lootName} (2/2 skips used)`, 'warning');
     }
 }
 
