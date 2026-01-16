@@ -1,17 +1,5 @@
-// Initialize the application
-document.addEventListener('DOMContentLoaded', function() {
-    initializeData();
-    
-    // Ensure all UI components are rendered after data initialization
-    setTimeout(() => {
-        renderRotation();
-        renderMembers();
-        renderLoot();
-        renderHistory();
-        updateStats();
-    }, 100);
-    
-    // Mobile optimizations
+// Mobile optimizations helper functions
+function setupMobileOptimizations() {
     if ('ontouchstart' in window) {
         document.body.classList.add('touch-device');
     }
@@ -35,7 +23,7 @@ document.addEventListener('DOMContentLoaded', function() {
     handleViewportChange();
     window.addEventListener('resize', handleViewportChange);
     window.addEventListener('orientationchange', handleViewportChange);
-});
+}
 
 // Data storage
 let guildMembers = [];
@@ -1950,45 +1938,45 @@ function updateAdminUI() {
     const adminElements = document.querySelectorAll('.admin-only');
     const adminBtn = document.getElementById('admin-btn');
     const adminBtnText = document.getElementById('admin-btn-text');
-    const memberViewIndicator = document.getElementById('member-view-indicator');
     const adminMemberControls = document.getElementById('admin-member-controls');
-    const randomizerTab = document.getElementById('randomizer-tab');
-    const randomizerTabBtn = document.querySelector('[onclick="showTab(\'randomizer\')"]');
     
     if (isAdmin) {
+        // Show admin-only elements
         adminElements.forEach(el => el.classList.remove('hidden'));
-        adminBtn.classList.remove('bg-red-800', 'hover:bg-red-900');
-        adminBtn.classList.add('bg-neutral-700', 'hover:bg-neutral-600');
-        adminBtnText.textContent = 'Logout';
-        adminBtn.querySelector('i').classList.remove('fa-lock');
-        adminBtn.querySelector('i').classList.add('fa-unlock');
+        
+        // Update admin button
+        if (adminBtn) {
+            adminBtn.classList.remove('bg-red-800', 'hover:bg-red-900');
+            adminBtn.classList.add('bg-neutral-700', 'hover:bg-neutral-600');
+            const icon = adminBtn.querySelector('i');
+            if (icon) {
+                icon.classList.remove('fa-lock');
+                icon.classList.add('fa-unlock');
+            }
+        }
+        if (adminBtnText) adminBtnText.textContent = 'Logout';
         
         // Show admin member controls
         if (adminMemberControls) adminMemberControls.classList.remove('hidden');
-        if (memberViewIndicator) memberViewIndicator.classList.add('hidden');
-        
-        // Show randomizer tab and button
-        if (randomizerTab) randomizerTab.classList.remove('admin-only');
-        if (randomizerTabBtn) randomizerTabBtn.classList.remove('admin-only');
     } else {
+        // Hide admin-only elements
         adminElements.forEach(el => el.classList.add('hidden'));
-        adminBtn.classList.remove('bg-neutral-700', 'hover:bg-neutral-600');
-        adminBtn.classList.add('bg-red-800', 'hover:bg-red-900');
-        adminBtnText.textContent = 'Admin Login';
-        adminBtn.querySelector('i').classList.remove('fa-unlock');
-        adminBtn.querySelector('i').classList.add('fa-lock');
         
-        // Hide admin member controls and show view-only indicator
+        // Update admin button
+        if (adminBtn) {
+            adminBtn.classList.remove('bg-neutral-700', 'hover:bg-neutral-600');
+            adminBtn.classList.add('bg-red-800', 'hover:bg-red-900');
+            const icon = adminBtn.querySelector('i');
+            if (icon) {
+                icon.classList.remove('fa-unlock');
+                icon.classList.add('fa-lock');
+            }
+        }
+        if (adminBtnText) adminBtnText.textContent = 'Admin';
+        
+        // Hide admin member controls
         if (adminMemberControls) adminMemberControls.classList.add('hidden');
-        if (memberViewIndicator) memberViewIndicator.classList.remove('hidden');
-        
-        // Hide randomizer tab and button
-        if (randomizerTab) randomizerTab.classList.add('admin-only');
-        if (randomizerTabBtn) randomizerTabBtn.classList.add('admin-only');
     }
-    
-    // Re-render rotation to show/hide controls
-    renderRotation();
 }
 
 // Event Timer Functions
@@ -2116,12 +2104,25 @@ function formatCountdown(ms) {
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize data and loot system
     initializeData();
     initializeLootSystem();
+    
+    // Render all UI components
+    renderRotation();
+    renderMembers();
+    renderLoot();
+    renderHistory();
+    updateStats();
+    
+    // Update admin UI state
     updateAdminUI();
     
     // Show rotation tab by default
     showTab('rotation');
+    
+    // Setup mobile optimizations
+    setupMobileOptimizations();
     
     // Start updating timers
     updateBossTimers();
