@@ -171,16 +171,23 @@ function showTab(tabName) {
     });
     
     // Show selected tab
-    document.getElementById(`${tabName}-tab`).classList.remove('hidden');
+    const targetTab = document.getElementById(`${tabName}-tab`);
+    if (targetTab) {
+        targetTab.classList.remove('hidden');
+    }
     
     // Update button styles
     document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('bg-purple-600');
-        btn.classList.add('bg-gray-700');
+        btn.classList.remove('bg-red-700');
+        btn.classList.add('bg-neutral-800');
     });
     
-    event.target.classList.remove('bg-gray-700');
-    event.target.classList.add('bg-purple-600');
+    // Highlight active button
+    const activeBtn = document.querySelector(`[onclick="showTab('${tabName}')"]`);
+    if (activeBtn) {
+        activeBtn.classList.remove('bg-neutral-800');
+        activeBtn.classList.add('bg-red-700');
+    }
 }
 
 // Current position tracker for each loot
